@@ -1,0 +1,69 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Player {
+  id        String   @id @default(uuid())
+  name      String
+  color     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  roundPlayers RoundPlayer[]
+  shots        Shot[]
+
+  @@map("players")
+}
+
+model Round {
+  id         String   @id @default(uuid())
+  date       DateTime
+  course     String
+  courseType String   @map("course_type")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  roundPlayers RoundPlayer[]
+  shots        Shot[]
+
+  @@map("rounds")
+}
+
+model RoundPlayer {
+  id       String @id @default(uuid())
+  roundId  String @map("round_id")
+  playerId String @map("player_id")
+
+  round  Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, playerId])
+  @@map("round_players")
+}
+
+model Shot {
+  id            String   @id @default(uuid())
+  roundId       String   @map("round_id")
+  playerId      String   @map("player_id")
+  holeNumber    Int      @map("hole_number")
+  shotNumber    Int      @map("shot_number")
+  club          String
+  distance      Int      @default(0)
+  location      String
+  targetLocation String  @map("target_location")
+  result        String
+  error         String?
+  isPenalty     Boolean  @default(false) @map("is_penalty")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  round  Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@map("shots")
+}
