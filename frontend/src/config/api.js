@@ -35,7 +35,7 @@ const getEnvironment = () => {
 // Get API configuration for current environment
 export const getApiConfig = () => {
   debugger;
-  console.log("Environment is "+getEnvironment(););
+  console.log("Environment is "+getEnvironment());
 
   const env = getEnvironment();
   return API_CONFIG[env] || API_CONFIG.production;
