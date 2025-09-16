@@ -16,9 +16,7 @@ npm run install:all
 # Backend
 cd backend
 #npm install
-# Запуск backend на локальном порту 3001
-pm2 start "npm run start -- --port 3001" --name glfstat-backend-staging
-echo "Backend started"
+
 
 # Создать .env файл для staging
 echo "📝 Создание .env файла для staging..."
@@ -27,9 +25,15 @@ NODE_ENV=staging
 PORT=3001
 DATABASE_URL="file:./prisma/dev.db"
 EOF
+chmod 600 .env
 
 npx prisma generate
 npx prisma db push
+
+# Запуск backend на локальном порту 3001
+pm2 start "npm run start -- --port 3001" --name glfstat-backend-staging
+sleep 5
+echo "Backend started"
 #cd ..
 
 # Frontend
