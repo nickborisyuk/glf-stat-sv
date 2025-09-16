@@ -14,7 +14,7 @@ const API_CONFIG = {
     retries: 2
   },
   staging: {
-    baseUrl: 'https://glfstat.pleibx.com/api', // Change this to your staging server
+    baseUrl: 'https://glfstat.pleibx.com/backend/api', // Change this to your staging server
     timeout: 12000,
     retries: 3
   }

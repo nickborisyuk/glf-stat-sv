@@ -11,11 +11,11 @@ echo "📥 Pull из Git..."
 git pull origin main
 
 echo "📦 Установка зависимостей..."
-npm run install:all
+#npm run install:all
 
 # Backend
 cd backend
-#npm install
+npm install
 
 # Создать .env файл для staging
 echo "📝 Создание .env файла для staging..."
@@ -30,14 +30,14 @@ npx prisma generate
 npx prisma db push
 
 # Запуск backend на локальном порту 3001
-pm2 start "npm run start -- --port 3001" --name glfstat-backend-staging
+pm2 start "npm run start -- --host 127.0.0.1 --port 3001" --name glfstat-backend-staging
 sleep 5
 echo "Backend started"
 #cd ..
 
 # Frontend
 cd ../frontend
-#npm install
+npm install
 # Сборка фронтенда
 npm run build:staging
 # Запуск Vite preview на локальном порту 3000
