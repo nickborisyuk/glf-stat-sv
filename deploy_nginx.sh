@@ -17,7 +17,6 @@ npm run install:all
 cd backend
 #npm install
 
-
 # Создать .env файл для staging
 echo "📝 Создание .env файла для staging..."
 cat > .env << EOF
