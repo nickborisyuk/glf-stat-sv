@@ -16,12 +16,6 @@
 
   // Reactive computed value for button state
   $: canStart = selectedPlayer && selectedClub && selectedLocation;
-  $: console.log('ShotForm reactive update:', {
-    selectedPlayer,
-    selectedClub,
-    selectedLocation,
-    canStart
-  });
 
   function startShot() {
     if (!selectedPlayer || !selectedClub || !selectedLocation) {
@@ -54,14 +48,7 @@
   }
 
   function canStartShot() {
-    const canStart = selectedPlayer && selectedClub && selectedLocation;
-    console.log('canStartShot check:', {
-      selectedPlayer,
-      selectedClub,
-      selectedLocation,
-      canStart
-    });
-    return canStart;
+    return selectedPlayer && selectedClub && selectedLocation;
   }
 </script>
 

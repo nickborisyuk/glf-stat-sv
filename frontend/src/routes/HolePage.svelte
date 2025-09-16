@@ -318,12 +318,12 @@
     <div class="fixed bottom-20 left-6 right-6">
       <button
         on:click={() => showShotForm = true}
-        class="w-full btn-primary py-4"
+        class="w-full btn-primary py-4 flex items-center justify-center gap-2"
       >
-        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
         </svg>
-        Add Shot
+        <span class="whitespace-nowrap">Add Shot</span>
       </button>
     </div>
 
