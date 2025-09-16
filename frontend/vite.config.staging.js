@@ -2,26 +2,16 @@ import { defineConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { VitePWA } from 'vite-plugin-pwa'
 
-export default defineConfig(({ mode }) => {
-  // Load different config based on mode
-  if (mode === 'production') {
-    return require('./vite.config.production.js').default;
-  }
-  if (mode === 'staging') {
-    return require('./vite.config.staging.js').default;
-  }
-  
-  // Default development config
-  return {
+export default defineConfig({
   plugins: [
     svelte(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Golf Stats Tracker',
+        name: 'Golf Stats Tracker (Staging)',
         short_name: 'Golf Stats',
-        description: 'Track your golf game statistics',
+        description: 'Track your golf game statistics - Staging',
         theme_color: '#1f2937',
         background_color: '#ffffff',
         display: 'standalone',
@@ -67,23 +57,12 @@ export default defineConfig(({ mode }) => {
       }
     })
   ],
-  server: {
-    port: 5173,
-    host: '0.0.0.0', // Allow external connections
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-        secure: false
-      }
-    }
-  },
   build: {
     outDir: 'dist',
-    sourcemap: true
+    sourcemap: true,
+    minify: false
   },
   define: {
-    'import.meta.env.VITE_ENV': '"development"'
+    'import.meta.env.VITE_ENV': '"staging"'
   }
-  };
 })

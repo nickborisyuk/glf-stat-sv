@@ -47,9 +47,9 @@ npx prisma generate
 npx prisma db push
 cd ..
 
-echo "🔨 Сборка фронтенда..."
+echo "🔨 Сборка фронтенда для staging..."
 cd frontend
-npm run build
+npm run build:staging
 cd ..
 
 echo "🚀 Запуск приложений через PM2..."
@@ -77,6 +77,7 @@ echo ""
 echo "🌐 Приложение доступно по адресам:"
 echo "  Frontend: http://localhost:3000"
 echo "  Backend API: http://localhost:3001"
+echo "  Database: http://localhost:5555 (Prisma Studio)"
 echo ""
 echo "📋 Полезные команды:"
 echo "  pm2 status                    - статус приложений"

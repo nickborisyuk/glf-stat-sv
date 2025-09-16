@@ -1,4 +1,4 @@
-const API_BASE = '/api';
+import { API_BASE, API_TIMEOUT, buildApiUrl } from '../config/api.js';
 
 class ApiError extends Error {
   constructor(message, status, data) {
@@ -9,7 +9,7 @@ class ApiError extends Error {
 }
 
 async function request(endpoint, options = {}) {
-  const url = `${API_BASE}${endpoint}`;
+  const url = buildApiUrl(endpoint);
   const config = {
     headers: {
       'Content-Type': 'application/json',
@@ -23,7 +23,16 @@ async function request(endpoint, options = {}) {
   }
 
   try {
-    const response = await fetch(url, config);
+    // Add timeout using AbortController
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
+    
+    const response = await fetch(url, {
+      ...config,
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -39,6 +48,11 @@ async function request(endpoint, options = {}) {
     if (error instanceof ApiError) {
       throw error;
     }
+    
+    if (error.name === 'AbortError') {
+      throw new ApiError('Request timeout', 408, { originalError: 'Request took too long' });
+    }
+    
     throw new ApiError('Network error', 0, { originalError: error.message });
   }
 }

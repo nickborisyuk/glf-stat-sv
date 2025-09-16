@@ -2,17 +2,7 @@ import { defineConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { VitePWA } from 'vite-plugin-pwa'
 
-export default defineConfig(({ mode }) => {
-  // Load different config based on mode
-  if (mode === 'production') {
-    return require('./vite.config.production.js').default;
-  }
-  if (mode === 'staging') {
-    return require('./vite.config.staging.js').default;
-  }
-  
-  // Default development config
-  return {
+export default defineConfig({
   plugins: [
     svelte(),
     VitePWA({
@@ -67,23 +57,20 @@ export default defineConfig(({ mode }) => {
       }
     })
   ],
-  server: {
-    port: 5173,
-    host: '0.0.0.0', // Allow external connections
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-        secure: false
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    minify: 'terser',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['svelte'],
+          charts: ['chart.js', 'chartjs-adapter-date-fns']
+        }
       }
     }
   },
-  build: {
-    outDir: 'dist',
-    sourcemap: true
-  },
   define: {
-    'import.meta.env.VITE_ENV': '"development"'
+    'import.meta.env.VITE_ENV': '"production"'
   }
-  };
 })

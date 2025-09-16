@@ -301,9 +301,19 @@ golf-stats/
 - `npm run db:push` - Push schema to database
 
 **Frontend:**
-- `npm run dev` - Start Vite dev server
+- `npm run dev` - Start Vite dev server (development mode)
 - `npm run build` - Build for production
+- `npm run build:production` - Build for production server
+- `npm run build:staging` - Build for staging server
 - `npm run preview` - Preview production build
+- `npm run preview:production` - Preview production build
+
+### Remote Server Deployment
+
+For remote server deployment, see:
+- `REMOTE_SETUP.md` - Detailed setup guide for remote servers
+- `DEPLOY.md` - General deployment instructions
+- `deploy_remote.sh` - Automated deployment script
 
 ### Contributing
 
