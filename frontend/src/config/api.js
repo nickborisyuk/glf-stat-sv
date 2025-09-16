@@ -22,21 +22,22 @@ const API_CONFIG = {
 
 // Get current environment
 const getEnvironment = () => {
+  // Check for custom environment variable first
+  if (import.meta.env.VITE_ENV) {
+    return import.meta.env.VITE_ENV;
+  }
+  
   // Check if we're in development mode (Vite dev server)
   if (import.meta.env.DEV) {
     return 'development';
   }
   
-  // Check for custom environment variable
-  const env = import.meta.env.VITE_ENV || 'production';
-  return env;
+  // Default to production
+  return 'production';
 };
 
 // Get API configuration for current environment
 export const getApiConfig = () => {
-  debugger;
-  console.log("Environment is "+getEnvironment());
-
   const env = getEnvironment();
   return API_CONFIG[env] || API_CONFIG.production;
 };
@@ -55,12 +56,14 @@ export const buildApiUrl = (endpoint) => {
   return `${base}${path}`;
 };
 
-// Log current configuration (only in development)
-if (import.meta.env.DEV) {
+// Log current configuration (in development and staging)
+if (import.meta.env.DEV || getEnvironment() === 'staging') {
   console.log('🌐 API Configuration:', {
     environment: getEnvironment(),
     baseUrl: API_BASE,
     timeout: API_TIMEOUT,
-    retries: API_RETRIES
+    retries: API_RETRIES,
+    VITE_ENV: import.meta.env.VITE_ENV,
+    DEV: import.meta.env.DEV
   });
 }
