@@ -66,7 +66,7 @@ pm2 delete "$FRONTEND_APP_NAME" 2>/dev/null || true
 
 # Запустить бэкенд
 echo "Starting backend..."
-pm2 start "cd backend && npm start" --name "$BACKEND_APP_NAME" --env production
+pm2 start "cd backend && npm run start:production" --name "$BACKEND_APP_NAME"
 
 # Запустить фронтенд (предварительно собранный)
 echo "Starting frontend..."

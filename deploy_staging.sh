@@ -52,12 +52,21 @@ cd ..
 echo "🚀 Запуск приложений через PM2..."
 
 # Остановить существующие процессы если они запущены
+echo "Stopping existing processes..."
+pm2 delete "golf-stats-backend" 2>/dev/null || true
+pm2 delete "golf-stats-frontend" 2>/dev/null || true
 pm2 delete "golf-stats-backend-staging" 2>/dev/null || true
 pm2 delete "golf-stats-frontend-staging" 2>/dev/null || true
 
 # Запустить бэкенд для staging
 echo "Starting backend for staging..."
-pm2 start "cd backend && npm start" --name "golf-stats-backend-staging" --env staging
+pm2 start "cd backend && npm run start:staging" --name "golf-stats-backend-staging"
+
+# Проверить что backend запустился в staging режиме
+echo "Waiting for backend to start..."
+sleep 5
+echo "Checking backend environment..."
+curl -s http://localhost:3001/api/health | jq . || echo "Backend not responding"
 
 # Запустить фронтенд для staging (предварительно собранный)
 echo "Starting frontend for staging..."
@@ -68,6 +77,9 @@ pm2 save
 
 echo "📊 Статус приложений:"
 pm2 status
+
+echo "🔍 Проверка переменных окружения:"
+pm2 env golf-stats-backend-staging
 
 echo "✅ Staging деплой завершен!"
 echo ""

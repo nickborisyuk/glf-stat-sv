@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
+    "start:staging": "NODE_ENV=staging node src/index.js",
+    "start:production": "NODE_ENV=production node src/index.js",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
