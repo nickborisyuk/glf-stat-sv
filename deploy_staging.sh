@@ -60,13 +60,34 @@ pm2 delete "golf-stats-frontend-staging" 2>/dev/null || true
 
 # Запустить бэкенд для staging
 echo "Starting backend for staging..."
-pm2 start "cd backend && npm run start:staging" --name "golf-stats-backend-staging"
+
+# Проверить что backend зависимости установлены
+if [ ! -d "backend/node_modules" ]; then
+  echo "Installing backend dependencies..."
+  cd backend && npm install && cd ..
+fi
+
+# Попробовать запустить backend
+echo "Attempting to start backend..."
+if ! pm2 start "cd backend && npm run start:staging" --name "golf-stats-backend-staging"; then
+  echo "❌ Failed to start with npm script, trying alternative method..."
+  pm2 start backend/src/index.js --name "golf-stats-backend-staging" --env NODE_ENV=staging
+fi
 
 # Проверить что backend запустился в staging режиме
 echo "Waiting for backend to start..."
 sleep 5
-echo "Checking backend environment..."
-curl -s http://localhost:3001/api/health | jq . || echo "Backend not responding"
+
+echo "Checking if backend process is running..."
+if pm2 describe golf-stats-backend-staging >/dev/null 2>&1; then
+  echo "✅ Backend process is running"
+  echo "Checking backend environment..."
+  curl -s http://localhost:3001/api/health | jq . || echo "Backend not responding"
+else
+  echo "❌ Backend process failed to start"
+  echo "Checking PM2 logs..."
+  pm2 logs golf-stats-backend-staging --lines 10 || echo "No logs available"
+fi
 
 # Запустить фронтенд для staging (предварительно собранный)
 echo "Starting frontend for staging..."
@@ -79,7 +100,13 @@ echo "📊 Статус приложений:"
 pm2 status
 
 echo "🔍 Проверка переменных окружения:"
-pm2 env golf-stats-backend-staging
+if pm2 describe golf-stats-backend-staging >/dev/null 2>&1; then
+  pm2 env golf-stats-backend-staging
+else
+  echo "❌ Процесс golf-stats-backend-staging не найден"
+  echo "📋 Доступные процессы:"
+  pm2 list
+fi
 
 echo "✅ Staging деплой завершен!"
 echo ""
@@ -94,3 +121,8 @@ echo "  pm2 logs golf-stats-backend-staging     - логи бэкенда"
 echo "  pm2 logs golf-stats-frontend-staging    - логи фронтенда"
 echo "  pm2 restart golf-stats-backend-staging  - перезапуск бэкенда"
 echo "  pm2 restart golf-stats-frontend-staging - перезапуск фронтенда"
+echo ""
+echo "🔧 Диагностика:"
+echo "  pm2 describe golf-stats-backend-staging - информация о процессе"
+echo "  pm2 monit                               - мониторинг процессов"
+echo "  curl http://localhost:3001/api/health   - проверка API"
