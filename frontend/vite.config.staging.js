@@ -60,7 +60,13 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
-    minify: false
+    minify: false,
+    rollupOptions: {
+      onwarn(warning, warn) {
+        // просто игнорируем все предупреждения
+        return
+      }
+    }
   },
   define: {
     'import.meta.env.VITE_ENV': '"staging"'
