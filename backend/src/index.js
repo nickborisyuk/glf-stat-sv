@@ -17,7 +17,9 @@ app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://yourdomain.com'] 
-    : ['http://localhost:5173', 'http://localhost:4173'],
+    : process.env.NODE_ENV === 'staging'
+    ? ['http://pleibx.com:3000', 'http://localhost:5173', 'http://localhost:4173']
+    : ['http://localhost:5173', 'http://localhost:4173', 'http://pleibx.com:3000'],
   credentials: true
 }));
 

@@ -43,6 +43,12 @@ DATABASE_URL="file:./prisma/dev.db"
 EOF
 fi
 
+# Обновить .env для staging если нужно
+if [ "$NODE_ENV" = "staging" ]; then
+    echo "📝 Обновление .env файла для staging..."
+    sed -i 's/NODE_ENV=production/NODE_ENV=staging/' .env || true
+fi
+
 npx prisma generate
 npx prisma db push
 cd ..

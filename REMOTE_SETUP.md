@@ -46,9 +46,9 @@ production: {
 **Для staging сервера:**
 ```javascript
 staging: {
-  baseUrl: 'https://staging.yourdomain.com/api',
+  baseUrl: 'http://pleibx.com:3001/api', // Ваш staging сервер
   // или
-  baseUrl: 'http://staging-ip:3001/api',
+  baseUrl: 'https://staging.yourdomain.com/api',
 }
 ```
 
@@ -71,7 +71,10 @@ npm run build:production
 ```bash
 cd frontend
 npm run build:staging
-# Собирает с настройками для staging сервера
+# Собирает с настройками для staging сервера (http://pleibx.com:3001/api)
+
+# Или используйте специальный скрипт деплоя:
+./deploy_staging.sh
 ```
 
 ## 🔧 Настройка удаленного сервера
@@ -187,10 +190,19 @@ console.log('API Config:', window.API_CONFIG);
 ```javascript
 // В backend/src/index.js
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://yourdomain.com'],
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://yourdomain.com'] 
+    : process.env.NODE_ENV === 'staging'
+    ? ['http://pleibx.com:3000', 'http://localhost:5173', 'http://localhost:4173']
+    : ['http://localhost:5173', 'http://localhost:4173', 'http://pleibx.com:3000'],
   credentials: true
 }));
 ```
+
+**Для staging окружения** CORS уже настроен для:
+- `http://pleibx.com:3000` (frontend)
+- `http://localhost:5173` (локальная разработка)
+- `http://localhost:4173` (preview)
 
 ### Проблема: API не отвечает
 **Решение:** Проверьте:

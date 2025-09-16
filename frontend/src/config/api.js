@@ -9,7 +9,7 @@ const API_CONFIG = {
     retries: 3
   },
   production: {
-    baseUrl: 'http://your-server.com/api', // Change this to your remote server
+    baseUrl: 'http://pleibx.com:3001/api', // Your production server
     timeout: 15000,
     retries: 2
   },
