@@ -2,7 +2,7 @@
 
 set -e
 # Перейти в папку проекта
-cd /home/nb/glfstat
+cd /home/nb/glfstat-sv
 
 # Set staging environment
 export NODE_ENV=staging
