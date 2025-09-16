@@ -125,40 +125,20 @@ CREATE TABLE shots (
    - Backend API on `http://localhost:3001`
    - Frontend on `http://localhost:5173`
 
-### Production Deployment
+### Quick Start
 
-Use the provided deployment script:
+Use the setup script for easy local development:
 
 ```bash
-# Make sure you have sudo access and nginx installed
+# Setup everything for local development
 ./deploy.sh
 ```
 
-Or manually deploy:
-
-1. **Build frontend**
-   ```bash
-   cd frontend
-   npm run build
-   cd ..
-   ```
-
-2. **Install production dependencies**
-   ```bash
-   cd backend
-   npm install --production
-   ```
-
-3. **Setup database**
-   ```bash
-   npx prisma generate
-   npx prisma db push
-   ```
-
-4. **Start backend**
-   ```bash
-   npm start
-   ```
+This will:
+- Install all dependencies
+- Setup the database
+- Build the frontend
+- Prepare everything for development
 
 ## API Endpoints
 
@@ -303,7 +283,7 @@ golf-stats/
 │   │   └── lib/            # Utility functions
 │   ├── public/             # Static assets
 │   └── package.json
-├── deploy.sh               # Production deployment script
+├── deploy.sh               # Local development setup script
 └── README.md
 ```
 
