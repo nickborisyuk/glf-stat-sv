@@ -61,13 +61,13 @@
       <h1 class="text-2xl font-bold text-ios-gray-900">Rounds</h1>
       <button
         on:click={() => showAddModal = true}
-        class="btn-primary text-sm px-4 py-2"
+        class="btn-primary text-sm px-4 py-2 flex items-center gap-2 whitespace-nowrap"
         disabled={$players.length === 0}
       >
-        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
         </svg>
-        New Round
+        <span class="whitespace-nowrap">New Round</span>
       </button>
     </div>
   </div>

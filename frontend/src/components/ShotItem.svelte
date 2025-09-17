@@ -3,7 +3,8 @@
   import { LOCATION_LABELS, CLUB_LABELS } from '../stores/app.js';
 
   export let shot;
-  export let canDeleteShot;
+  export let canDelete = false;
+  export let isPending = false;
 
   const dispatch = createEventDispatcher();
 
@@ -24,13 +25,18 @@
 <div class="shot-item">
   <div class="flex items-center gap-3 flex-1">
     <!-- Shot Number -->
-    <div class="flex-shrink-0 w-8 h-8 bg-ios-gray-100 rounded-full flex items-center justify-center">
-      <span class="text-sm font-semibold text-ios-gray-700">{shot.shotNumber}</span>
+    <div 
+      class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center border border-white shadow-sm"
+      style="background-color: {shot.player?.color || '#6b7280'}"
+    >
+      <span class="text-sm font-semibold text-white">{shot.shotNumber}</span>
     </div>
 
     <!-- Shot Info -->
     <div class="flex-1 min-w-0">
       <div class="flex items-center gap-2 mb-1">
+        <span class="font-medium text-ios-gray-900">{shot.player?.name || 'Unknown Player'}</span>
+        <span class="text-ios-gray-500">•</span>
         <span class="font-medium text-ios-gray-900">{CLUB_LABELS[shot.club] || shot.club}</span>
         <span class="text-ios-gray-500">•</span>
         <span class="text-ios-gray-600">{LOCATION_LABELS[shot.location] || shot.location}</span>
@@ -40,7 +46,9 @@
         {/if}
       </div>
       
-      {#if shot.result === 'fail' && shot.error}
+      {#if isPending}
+        <p class="text-sm text-ios-blue font-medium">In progress... (Distance: {shot.distance || 0}m)</p>
+      {:else if shot.result === 'fail' && shot.error}
         <p class="text-sm text-ios-red">{shot.error}</p>
       {:else if shot.targetLocation}
         <p class="text-sm text-ios-gray-600">
@@ -64,7 +72,7 @@
   </div>
 
   <!-- Delete Button -->
-  {#if canDeleteShot(shot)}
+  {#if canDelete}
     <button
       on:click={deleteShot}
       class="flex-shrink-0 p-2 text-ios-red hover:bg-ios-red/10 rounded-lg transition-colors"

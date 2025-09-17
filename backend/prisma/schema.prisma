@@ -56,8 +56,8 @@ model Shot {
   club          String
   distance      Int      @default(0)
   location      String
-  targetLocation String  @map("target_location")
-  result        String
+  targetLocation String? @map("target_location")
+  result        String?
   error         String?
   isPenalty     Boolean  @default(false) @map("is_penalty")
   createdAt     DateTime @default(now()) @map("created_at")

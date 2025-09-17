@@ -16,6 +16,12 @@
   let isPenalty = false;
   let showTargetOptions = false;
 
+  // Set default target location if available
+  $: if (AVAILABLE_TARGET_LOCATIONS && AVAILABLE_TARGET_LOCATIONS.length > 0 && !targetLocation) {
+    targetLocation = AVAILABLE_TARGET_LOCATIONS[0];
+    console.log('CompleteShotModal: set default targetLocation to:', targetLocation);
+  }
+
   onMount(() => {
     // Initialize distance from GPS if not provided
     if (!distance) {
@@ -25,6 +31,7 @@
 
   function completeShot() {
     if (!targetLocation) {
+      console.error('CompleteShotModal: targetLocation is required');
       return;
     }
 
@@ -32,10 +39,11 @@
       targetLocation,
       result,
       error: result === 'fail' ? error : null,
-      distance,
-      isPenalty
+      distance: parseInt(distance) || 0,
+      isPenalty: Boolean(isPenalty)
     };
 
+    console.log('CompleteShotModal: dispatching complete with data:', shotData);
     dispatch('complete', shotData);
   }
 
@@ -55,8 +63,11 @@
     }
   }
 
+  // Reactive computed value for button state
+  $: canComplete = targetLocation && (result === 'success' || (result === 'fail' && error.trim()));
+
   function canCompleteShot() {
-    return targetLocation && (result === 'success' || (result === 'fail' && error.trim()));
+    return canComplete;
   }
 
   function formatDistance(dist) {
@@ -102,7 +113,7 @@
     </div>
 
     <!-- Form -->
-    <div class="p-6 space-y-6">
+    <div class="modal-body space-y-6">
       <!-- Distance -->
       <div>
         <label for="distance" class="block text-sm font-medium text-ios-gray-700 mb-2">
@@ -230,7 +241,7 @@
     </div>
 
     <!-- Actions -->
-    <div class="flex gap-3 p-6 border-t border-ios-gray-200">
+    <div class="modal-actions flex gap-3">
       <button
         on:click={cancelShot}
         class="flex-1 btn-secondary"
@@ -239,7 +250,7 @@
       </button>
       <button
         on:click={completeShot}
-        disabled={!canCompleteShot()}
+        disabled={!canComplete}
         class="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Complete Shot

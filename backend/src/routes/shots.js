@@ -47,8 +47,8 @@ router.post('/', [
   body('club').isIn(AVAILABLE_CLUBS).withMessage('Invalid club selection'),
   body('distance').isInt({ min: 0 }).withMessage('Distance must be a non-negative number'),
   body('location').isIn(AVAILABLE_LOCATIONS).withMessage('Invalid location'),
-  body('targetLocation').isIn(AVAILABLE_TARGET_LOCATIONS).withMessage('Invalid target location'),
-  body('result').isIn(AVAILABLE_RESULTS).withMessage('Result must be success or fail'),
+  body('targetLocation').optional().isIn(AVAILABLE_TARGET_LOCATIONS).withMessage('Invalid target location'),
+  body('result').optional().isIn(AVAILABLE_RESULTS).withMessage('Result must be success or fail'),
   body('error').optional().isString(),
   body('isPenalty').optional().isBoolean()
 ], async (req, res) => {
@@ -102,21 +102,29 @@ router.post('/', [
       });
     }
 
+    const shotData = {
+      id: uuidv4(),
+      roundId,
+      playerId,
+      holeNumber,
+      shotNumber,
+      club,
+      distance,
+      location,
+      isPenalty: isPenalty || false
+    };
+
+    // Only add optional fields if they are provided
+    if (targetLocation) {
+      shotData.targetLocation = targetLocation;
+    }
+    if (result) {
+      shotData.result = result;
+      shotData.error = result === 'fail' ? error : null;
+    }
+
     const shot = await prisma.shot.create({
-      data: {
-        id: uuidv4(),
-        roundId,
-        playerId,
-        holeNumber,
-        shotNumber,
-        club,
-        distance,
-        location,
-        targetLocation,
-        result,
-        error: result === 'fail' ? error : null,
-        isPenalty
-      },
+      data: shotData,
       include: {
         player: true
       }

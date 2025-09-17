@@ -3,10 +3,9 @@
   import Router from 'svelte-spa-router';
   import { activeTab, isLoading, error } from './stores/app.js';
   import { playersApi, roundsApi } from './lib/api.js';
-  import StatusBar from './components/StatusBar.svelte';
-  import TabBar from './components/TabBar.svelte';
-  import ErrorToast from './components/ErrorToast.svelte';
-  import LoadingSpinner from './components/LoadingSpinner.svelte';
+import TabBar from './components/TabBar.svelte';
+import ErrorToast from './components/ErrorToast.svelte';
+import LoadingSpinner from './components/LoadingSpinner.svelte';
 
   // Import route components
   import PlayersPage from './routes/PlayersPage.svelte';
@@ -62,11 +61,8 @@
 
 {#if mounted}
   <div class="min-h-screen bg-ios-gray-50">
-    <!-- Status Bar -->
-    <StatusBar />
-    
     <!-- Main Content -->
-    <main class="pb-20 pt-11">
+    <main class="pb-20">
       <Router {routes} />
     </main>
     

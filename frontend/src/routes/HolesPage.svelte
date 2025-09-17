@@ -32,8 +32,9 @@
       round = await roundsApi.getById(roundId);
       currentRound.set(round);
       
-      // Generate holes array (18 or 9 holes)
-      holes = Array.from({ length: 18 }, (_, i) => ({
+      // Generate holes array (18 or 9 holes based on course type)
+      const holeCount = round.courseType === 'academic' ? 9 : 18;
+      holes = Array.from({ length: holeCount }, (_, i) => ({
         number: i + 1,
         hasShots: round.shots ? round.shots.some(shot => shot.holeNumber === i + 1) : false
       }));

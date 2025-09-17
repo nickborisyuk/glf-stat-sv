@@ -18,7 +18,12 @@
   let shots = [];
   let showShotForm = false;
   let showCompleteModal = false;
-  let pendingShot = null;
+  let pendingShots = [];
+  let currentPendingShot = null;
+  let sortedShots = [];
+  
+  // Reactive sorted shots - this will automatically update when shots changes
+  $: shots.length, sortedShots = getShotsSortedByTime();
   let shotStartLocation = null;
   let currentDistance = 0;
 
@@ -35,9 +40,10 @@
     // Listen for distance updates
     gpsManager.onDistanceUpdate((distance) => {
       currentDistance = distance;
-      if (pendingShot) {
-        pendingShot.distance = distance;
-      }
+      pendingShots = pendingShots.map(shot => ({
+        ...shot,
+        distance
+      }));
     });
   });
 
@@ -74,8 +80,27 @@
       ]);
       
       round = roundData;
-      shots = shotsData;
+      
+      // Merge API data with local shots to preserve any locally added shots
+      const apiShotIds = new Set(shotsData.map(s => s.id));
+      const localShotsNotInAPI = shots.filter(s => !apiShotIds.has(s.id));
+      
+      shots = [...shotsData, ...localShotsNotInAPI];
       currentRound.set(round);
+      
+      // Find incomplete shots and add them to pending shots
+      // A shot is incomplete if it has distance 0 and no targetLocation or result
+      const incompleteShots = shots.filter(shot => 
+        shot.distance === 0 && (!shot.targetLocation || !shot.result)
+      );
+      
+      // Convert incomplete shots to pending shots format
+      pendingShots = incompleteShots.map(shot => ({
+        ...shot,
+        player: shot.player || round.players?.find(p => p.id === shot.playerId),
+        distance: shot.distance || 0
+      }));
+      
     } catch (err) {
       console.error('Failed to load hole data:', err);
       error.set(`Failed to load hole data: ${err.message || 'Unknown error'}`);
@@ -106,38 +131,46 @@
         playerId: player.id,
         club,
         location,
-        targetLocation: 'fairway', // default target
         distance: 0,
-        result: 'success', // temporary result until completion
-        error: '',
-        shotNumber: shots.length + 1
+        shotNumber: getNextShotNumber(player.id)
       };
       
       console.log('Creating shot with data:', shotData);
-      console.log('Round ID type:', typeof roundId, 'value:', roundId);
-      console.log('Hole ID type:', typeof holeId, 'value:', holeId);
-      console.log('Player ID type:', typeof player.id, 'value:', player.id);
-      console.log('Round data:', round);
-      console.log('Round players:', round?.players);
+      
+      // Validate shot data
+      if (!shotData.roundId || !shotData.playerId || !shotData.club || !shotData.location) {
+        throw new Error('Missing required shot data');
+      }
+      
+      if (!shotData.holeNumber || shotData.holeNumber < 1) {
+        throw new Error('Invalid hole number');
+      }
+      
+      if (!shotData.shotNumber || shotData.shotNumber < 1) {
+        throw new Error('Invalid shot number');
+      }
       
       // Create shot with distance 0 immediately
       const newShot = await shotsApi.create(shotData);
-
-      // Add to local shots array
-      shots = [...shots, newShot];
       
+      // Add to local shots array immediately
+      shots = [...shots, newShot];
+
+      // Create pending shot object
+      const newPendingShot = {
+        ...newShot,
+        player,
+        club,
+        location,
+        startLocation: shotStartLocation
+      };
+
+      // Add to pending shots array immediately
+      pendingShots = [...pendingShots, newPendingShot];
+
       // Start GPS tracking for distance measurement
       gpsManager.startTracking().then(success => {
-        if (success) {
-          // Store the shot ID for later completion
-          pendingShot = {
-            ...newShot,
-            player,
-            club,
-            location,
-            startLocation: shotStartLocation
-          };
-        } else {
+        if (!success) {
           error.set('Failed to start GPS tracking');
         }
       });
@@ -146,79 +179,131 @@
     } catch (err) {
       console.error('Failed to create shot:', err);
       console.error('Error details:', err.response?.data || err.message);
+      console.error('Event detail that failed:', event.detail);
+      console.error('Round data:', round);
+      console.error('Player data:', event.detail?.player);
+      if (err.data) {
+        console.error('Server error details:', err.data);
+        if (err.data.errors && Array.isArray(err.data.errors)) {
+          console.error('Server errors array:', err.data.errors);
+          err.data.errors.forEach((error, index) => {
+            console.error(`Error ${index + 1}:`, error);
+          });
+        }
+      }
       error.set(`Failed to create shot: ${err.response?.data?.errors?.[0]?.msg || err.message}`);
     } finally {
       isLoading.set(false);
     }
   }
 
-  async function completeShot(shotData) {
+  async function completeShot(shotId, shotData) {
     try {
       isLoading.set(true);
       
-      // Update existing shot with final data
-      const updatedShot = await shotsApi.update(pendingShot.id, {
-        distance: shotData.distance,
+      // Validate required fields
+      if (!shotData.targetLocation) {
+        throw new Error('Target location is required');
+      }
+      
+      const updateData = {
+        distance: parseInt(shotData.distance) || 0,
         targetLocation: shotData.targetLocation,
         result: shotData.result,
-        error: shotData.error,
-        isPenalty: shotData.isPenalty || false
-      });
+        isPenalty: Boolean(shotData.isPenalty)
+      };
+      
+      // Only add error field if there's an actual error
+      if (shotData.error) {
+        updateData.error = shotData.error;
+      }
+      
+      // Update existing shot with final data
+      const updatedShot = await shotsApi.update(shotId, updateData);
       
       // Update local shots array
       shots = shots.map(shot => 
-        shot.id === pendingShot.id ? updatedShot : shot
+        shot.id === shotId ? updatedShot : shot
       );
       
-      // Reset state
-      pendingShot = null;
+      // Remove from pending shots (if it was there)
+      pendingShots = pendingShots.filter(shot => shot.id !== shotId);
+      
+      // Stop GPS tracking if no more pending shots
+      if (pendingShots.length === 0) {
+        gpsManager.stopTracking();
+      }
+      
       showCompleteModal = false;
-      gpsManager.stopTracking();
+      currentPendingShot = null;
     } catch (err) {
       console.error('Failed to update shot:', err);
-      error.set('Failed to update shot');
+      console.error('Error details:', err);
+      console.error('Shot ID:', shotId);
+      console.error('Shot data:', shotData);
+      if (err.data) {
+        console.error('Server error details:', err.data);
+      }
+      error.set(`Failed to update shot: ${err.message}`);
     } finally {
       isLoading.set(false);
     }
   }
 
-  function cancelShot() {
-    pendingShot = null;
+  function cancelShot(shotId) {
+    if (shotId) {
+      // Cancel specific shot
+      pendingShots = pendingShots.filter(shot => shot.id !== shotId);
+    } else {
+      // Cancel all pending shots
+      pendingShots = [];
+    }
+    
     showShotForm = false;
     showCompleteModal = false;
-    gpsManager.stopTracking();
+    
+    // Stop GPS tracking if no more pending shots
+    if (pendingShots.length === 0) {
+      gpsManager.stopTracking();
+    }
   }
 
-  function openCompleteModal() {
+  function openCompleteModal(pendingShot) {
     if (pendingShot) {
+      currentPendingShot = pendingShot;
       showCompleteModal = true;
     }
   }
 
   function getNextShotNumber(playerId) {
     const playerShots = shots.filter(shot => shot.playerId === playerId);
-    return playerShots.length + 1;
+    if (playerShots.length === 0) {
+      return 1;
+    }
+    const maxShotNumber = Math.max(...playerShots.map(shot => shot.shotNumber));
+    return maxShotNumber + 1;
   }
 
-  function getShotsByPlayer() {
-    const shotsByPlayer = {};
-    
-    shots.forEach(shot => {
-      if (!shotsByPlayer[shot.playerId]) {
-        shotsByPlayer[shot.playerId] = {
-          player: shot.player,
-          shots: []
-        };
+  function getShotsSortedByTime() {
+    try {
+      // Use shots array which already includes all shots (completed and incomplete)
+      if (!shots || shots.length === 0) {
+        return [];
       }
-      shotsByPlayer[shot.playerId].shots.push(shot);
-    });
-
-    // Sort shots by shot number
-    Object.values(shotsByPlayer).forEach(playerData => {
-      playerData.shots.sort((a, b) => a.shotNumber - b.shotNumber);
-    });
-
-    return Object.values(shotsByPlayer);
+      
+      // Sort shots by creation time (newest first)
+      return [...shots].sort((a, b) => {
+        // If shots have createdAt field, use it
+        if (a.createdAt && b.createdAt) {
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        }
+        // Fallback to shot number (higher number = newer)
+        return b.shotNumber - a.shotNumber;
+      });
+    } catch (error) {
+      console.error('Error in getShotsSortedByTime:', error);
+      return [];
+    }
   }
 
   function canDeleteShot(shot) {
@@ -227,18 +312,27 @@
     return isLastShot;
   }
 
+  function isPendingShot(shot) {
+    // A shot is pending if it has distance 0 and no targetLocation or result
+    return shot.distance === 0 && (!shot.targetLocation || !shot.result);
+  }
+
   async function deleteShot(shotId) {
     try {
+      isLoading.set(true);
       await shotsApi.delete(shotId);
       await loadData();
     } catch (err) {
       console.error('Failed to delete shot:', err);
-      error.set('Failed to delete shot');
+      error.set(`Failed to delete shot: ${err.message}`);
+    } finally {
+      isLoading.set(false);
     }
   }
 
   async function addPenaltyShot(player) {
     try {
+      isLoading.set(true);
       await shotsApi.createPenalty({
         roundId,
         playerId: player.id,
@@ -248,6 +342,8 @@
     } catch (err) {
       console.error('Failed to add penalty shot:', err);
       error.set('Failed to add penalty shot');
+    } finally {
+      isLoading.set(false);
     }
   }
 </script>
@@ -285,29 +381,15 @@
           <p class="text-ios-gray-600 mb-6">Start tracking shots for this hole</p>
         </div>
       {:else}
-        <div class="space-y-6">
-          {#each getShotsByPlayer() as playerData}
+        <div class="space-y-2">
+          {#each sortedShots as shot}
             <div transition:fly={{ y: 20, duration: 300 }}>
-              <div class="flex items-center gap-3 mb-3">
-                <div 
-                  class="w-6 h-6 rounded-full border border-white shadow-sm"
-                  style="background-color: {playerData.player.color}"
-                ></div>
-                <h3 class="font-semibold text-ios-gray-900">{playerData.player.name}</h3>
-                <span class="text-sm text-ios-gray-500">
-                  {playerData.shots.length} shot{playerData.shots.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-              
-              <div class="space-y-2">
-                {#each playerData.shots as shot}
-                  <ShotItem 
-                    {shot}
-                    {canDeleteShot}
-                    on:delete={() => deleteShot(shot.id)}
-                  />
-                {/each}
-              </div>
+              <ShotItem 
+                {shot}
+                canDelete={canDeleteShot(shot)}
+                isPending={isPendingShot(shot)}
+                on:delete={() => deleteShot(shot.id)}
+              />
             </div>
           {/each}
         </div>
@@ -327,23 +409,25 @@
       </button>
     </div>
 
-    <!-- Pending Shot Button -->
-    {#if pendingShot}
-      <div class="fixed top-20 right-6">
-        <button
-          on:click={openCompleteModal}
-          class="flex items-center gap-3 px-4 py-3 rounded-full shadow-lg text-white font-medium transition-transform hover:scale-105"
-          style="background-color: {pendingShot.player.color}"
-        >
-          <div class="flex flex-col items-center">
-            <span class="text-sm font-medium">{pendingShot.player.name}</span>
-            <span class="text-xs opacity-90">{pendingShot.club}</span>
-          </div>
-          <div class="flex flex-col items-center">
-            <span class="text-lg font-bold">{Math.round(currentDistance)}m</span>
-            <span class="text-xs opacity-90">Complete</span>
-          </div>
-        </button>
+    <!-- Floating Complete Buttons for Pending Shots -->
+    {#if pendingShots.length > 0}
+      <div class="fixed top-20 right-6 space-y-3">
+        {#each pendingShots as pendingShot}
+          <button
+            on:click={() => openCompleteModal(pendingShot)}
+            class="flex items-center gap-3 px-4 py-3 rounded-full shadow-lg text-white font-medium transition-transform hover:scale-105"
+            style="background-color: {pendingShot.player.color}"
+          >
+            <div class="flex flex-col items-center">
+              <span class="text-sm font-medium">{pendingShot.player.name}</span>
+              <span class="text-xs opacity-90">{pendingShot.club}</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <span class="text-lg font-bold">{Math.round(pendingShot.distance || currentDistance)}m</span>
+              <span class="text-xs opacity-90">Complete</span>
+            </div>
+          </button>
+        {/each}
       </div>
     {/if}
 
@@ -367,14 +451,14 @@
     {/if}
 
     <!-- Complete Shot Modal -->
-    {#if showCompleteModal && pendingShot}
+    {#if showCompleteModal && currentPendingShot}
       <CompleteShotModal 
-        {pendingShot}
+        pendingShot={currentPendingShot}
         {AVAILABLE_TARGET_LOCATIONS}
         {LOCATION_LABELS}
-        distance={currentDistance}
-        on:complete={completeShot}
-        on:cancel={cancelShot}
+        distance={currentPendingShot.distance || currentDistance}
+        on:complete={(event) => completeShot(currentPendingShot.id, event.detail)}
+        on:cancel={() => cancelShot(currentPendingShot.id)}
       />
     {/if}
   </div>

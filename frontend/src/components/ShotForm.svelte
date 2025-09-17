@@ -68,7 +68,7 @@
     </div>
 
     <!-- Form -->
-    <div class="p-6 space-y-6">
+    <div class="modal-body space-y-6">
       <!-- Player Selection -->
       <div>
         <label class="block text-sm font-medium text-ios-gray-700 mb-2">
@@ -168,7 +168,7 @@
     </div>
 
     <!-- Actions -->
-    <div class="flex gap-3 p-6 border-t border-ios-gray-200">
+    <div class="modal-actions flex gap-3">
       <button
         on:click={closeModal}
         class="flex-1 btn-secondary"
