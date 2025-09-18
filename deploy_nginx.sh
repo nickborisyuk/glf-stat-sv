@@ -19,10 +19,13 @@ npm install
 
 # Остановить существующие процессы если они запущены
 echo "Stopping existing processes..."
-pm2 delete "golf-stats-backend" 2>/dev/null || true
-pm2 delete "golf-stats-frontend" 2>/dev/null || true
-pm2 delete "golf-stats-backend-staging" 2>/dev/null || true
-pm2 delete "golf-stats-frontend-staging" 2>/dev/null || true
+pm2 list --no-color | awk -v name="glfstat-backend-staging" '$4==name {print $2}' | xargs -r pm2 delete
+pm2 list --no-color | awk -v name="golfstat-frontend-staging '$4==name {print $2}' | xargs -r pm2 delete
+
+# pm2 delete "golf-stats-backend" 2>/dev/null || true
+# pm2 delete "golf-stats-frontend" 2>/dev/null || true
+# pm2 delete "golf-stats-backend-staging" 2>/dev/null || true
+# pm2 delete "golf-stats-frontend-staging" 2>/dev/null || true
 
 
 # Создать .env файл для staging
