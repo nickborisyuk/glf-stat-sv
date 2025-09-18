@@ -52,8 +52,15 @@
   }
 </script>
 
-<div class="modal-overlay" on:click={closeModal} transition:fade={{ duration: 200 }}>
-  <div class="modal-content" on:click|stopPropagation>
+<div 
+  class="modal-overlay" 
+  role="dialog" 
+  aria-modal="true"
+  on:click={closeModal}
+  on:keydown={(e) => e.key === 'Escape' && closeModal()}
+  transition:fade={{ duration: 200 }}
+>
+  <div class="modal-content" role="document" on:click|stopPropagation>
     <!-- Header -->
     <div class="flex items-center justify-between p-6 border-b border-ios-gray-200">
       <h2 class="text-xl font-bold text-ios-gray-900">Start New Shot</h2>
@@ -71,10 +78,10 @@
     <div class="modal-body space-y-6">
       <!-- Player Selection -->
       <div>
-        <label class="block text-sm font-medium text-ios-gray-700 mb-2">
+        <label for="player-select" class="block text-sm font-medium text-ios-gray-700 mb-2">
           Select Player
         </label>
-        <div class="grid grid-cols-1 gap-2">
+        <div class="grid grid-cols-1 gap-2" id="player-select">
           {#each players as player}
             <button
               on:click={() => selectPlayer(player)}

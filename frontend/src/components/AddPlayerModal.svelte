@@ -61,8 +61,15 @@
   }
 </script>
 
-<div class="modal-overlay" on:click={closeModal} transition:fade={{ duration: 200 }}>
-  <div class="modal-content" on:click|stopPropagation>
+<div 
+  class="modal-overlay" 
+  role="dialog" 
+  aria-modal="true"
+  on:click={closeModal}
+  on:keydown={(e) => e.key === 'Escape' && closeModal()}
+  transition:fade={{ duration: 200 }}
+>
+  <div class="modal-content" role="document" on:click|stopPropagation>
     <!-- Header -->
     <div class="flex items-center justify-between p-6 border-b border-ios-gray-200">
       <h2 class="text-xl font-bold text-ios-gray-900">Add New Player</h2>
@@ -96,12 +103,13 @@
 
       <!-- Color Selection -->
       <div>
-        <label class="block text-sm font-medium text-ios-gray-700 mb-2">
+        <label for="color-select" class="block text-sm font-medium text-ios-gray-700 mb-2">
           Player Color
         </label>
         
         <!-- Selected Color Display -->
         <button
+          id="color-select"
           on:click={() => showColors = !showColors}
           class="flex items-center gap-3 w-full p-4 border border-ios-gray-300 rounded-xl hover:border-ios-blue transition-colors"
         >

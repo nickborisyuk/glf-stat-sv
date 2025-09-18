@@ -74,7 +74,7 @@
   }
 </script>
 
-<div class="modal-overlay" on:click={closeModal} transition:fade={{ duration: 200 }}>
+<div class="modal-overlay" role="dialog" aria-modal="true" on:click={closeModal} on:keydown={(e) => e.key === 'Escape' && closeModal} transition:fade={{ duration: 200 }}>
   <div class="modal-content" on:click|stopPropagation>
     <!-- Header -->
     <div class="flex items-center justify-between p-6 border-b border-ios-gray-200">

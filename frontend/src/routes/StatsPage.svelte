@@ -140,8 +140,8 @@
         
         <!-- Round Selector -->
         <div class="bg-white rounded-2xl p-4 shadow-sm border border-ios-gray-200 mb-4">
-          <label class="block text-sm font-medium text-ios-gray-700 mb-2">Select Round</label>
-          <select
+          <label for="round-select" class="block text-sm font-medium text-ios-gray-700 mb-2">Select Round</label>
+          <select id="round-select"
             bind:value={selectedRound}
             on:change={() => selectedRound && selectRound(selectedRound)}
             class="input-field"
