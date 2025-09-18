@@ -17,6 +17,14 @@ echo "📦 Установка зависимостей..."
 cd backend
 npm install
 
+# Остановить существующие процессы если они запущены
+echo "Stopping existing processes..."
+pm2 delete "golf-stats-backend" 2>/dev/null || true
+pm2 delete "golf-stats-frontend" 2>/dev/null || true
+pm2 delete "golf-stats-backend-staging" 2>/dev/null || true
+pm2 delete "golf-stats-frontend-staging" 2>/dev/null || true
+
+
 # Создать .env файл для staging
 echo "📝 Создание .env файла для staging..."
 cat > .env << EOF
