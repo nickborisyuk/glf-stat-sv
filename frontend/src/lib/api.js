@@ -23,6 +23,8 @@ async function request(endpoint, options = {}) {
   }
 
   try {
+    console.log('🌐 API Request:', { url, config });
+    
     // Add timeout using AbortController
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);

@@ -136,6 +136,7 @@
       };
       
       console.log('Creating shot with data:', shotData);
+      console.log('API_BASE:', window.location.origin + '/api' || 'unknown');
       
       // Validate shot data
       if (!shotData.roundId || !shotData.playerId || !shotData.club || !shotData.location) {
