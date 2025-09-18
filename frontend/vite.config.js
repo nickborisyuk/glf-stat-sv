@@ -70,6 +70,7 @@ export default defineConfig(({ mode }) => {
   server: {
     port: 5173,
     host: '0.0.0.0', // Allow external connections
+    allowedHosts: ['glfstat.pleibx.com'],
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
