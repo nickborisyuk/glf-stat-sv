@@ -58,10 +58,10 @@ export default defineConfig({
     })
   ],
   preview: {
-    allowedHosts: ['glfstat.pleibx.com']
+    allowedHosts: 'all'
   },
   server: {
-    allowedHosts: ['glfstat.pleibx.com']
+    allowedHosts: 'all'
   },
   build: {
     outDir: 'dist',
