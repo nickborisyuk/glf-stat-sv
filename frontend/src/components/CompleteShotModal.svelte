@@ -20,11 +20,7 @@
   let showTargetOptions = false;
   let showErrorTypeOptions = false;
 
-  // Set default target location if available
-  $: if (AVAILABLE_TARGET_LOCATIONS && AVAILABLE_TARGET_LOCATIONS.length > 0 && !targetLocation) {
-    targetLocation = AVAILABLE_TARGET_LOCATIONS[0];
-    console.log('CompleteShotModal: set default targetLocation to:', targetLocation);
-  }
+  // No default target location - user must select
 
   onMount(() => {
     // Initialize distance from GPS if not provided

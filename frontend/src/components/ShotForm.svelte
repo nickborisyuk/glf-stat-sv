@@ -18,11 +18,12 @@
   // Reactive computed value for button state
   $: canStart = selectedPlayer && selectedClub && selectedLocation;
 
-  // Set default location when player is selected
+  // Set default location when player is selected (only for "From Where" field)
   $: if (selectedPlayer && getDefaultLocation) {
     const defaultLoc = getDefaultLocation(selectedPlayer.id);
     if (defaultLoc && !selectedLocation) {
       selectedLocation = defaultLoc;
+      console.log('ShotForm: set default location to:', defaultLoc, 'for player:', selectedPlayer.name);
     }
   }
 

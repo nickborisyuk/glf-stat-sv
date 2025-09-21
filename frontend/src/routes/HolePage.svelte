@@ -314,18 +314,25 @@
 
   function getDefaultLocation(playerId) {
     const playerShots = shots.filter(shot => shot.playerId === playerId);
+    console.log('getDefaultLocation for player:', playerId, 'shots count:', playerShots.length);
+    
     if (playerShots.length === 0) {
+      console.log('First shot for player, defaulting to tee');
       return 'tee'; // First shot always starts from tee
     }
     
     // Find the most recent completed shot for this player
     const completedShots = playerShots.filter(shot => shot.targetLocation && shot.result);
+    console.log('Completed shots for player:', completedShots.length);
+    
     if (completedShots.length === 0) {
+      console.log('No completed shots, defaulting to tee');
       return 'tee'; // No completed shots, start from tee
     }
     
     // Sort by shot number and get the latest
     const latestShot = completedShots.sort((a, b) => b.shotNumber - a.shotNumber)[0];
+    console.log('Latest shot target location:', latestShot.targetLocation);
     return latestShot.targetLocation;
   }
 
