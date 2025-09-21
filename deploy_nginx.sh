@@ -52,7 +52,8 @@ npm install
 # Сборка фронтенда
 npm run build:staging
 # Запуск Vite preview на локальном порту 3000
-pm2 start "npm run preview -- --host 127.0.0.1 --port 3000" --name glfstat-frontend-staging
+# pm2 start "npm run preview -- --host 127.0.0.1 --port 3000" --name glfstat-frontend-staging
+pm2 start "serve -s dist -l 3000" --name glfstat-frontend-staging
 echo "Frontend started"
 
 echo "📊 Статус приложений:"
