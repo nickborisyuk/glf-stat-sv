@@ -6,6 +6,8 @@
   export let pendingShot;
   export let AVAILABLE_TARGET_LOCATIONS;
   export let LOCATION_LABELS;
+  export let AVAILABLE_ERROR_TYPES;
+  export let ERROR_TYPE_LABELS;
   export let distance = 0;
 
   const dispatch = createEventDispatcher();
@@ -13,8 +15,10 @@
   let targetLocation = '';
   let result = 'success';
   let error = '';
+  let errorType = '';
   let isPenalty = false;
   let showTargetOptions = false;
+  let showErrorTypeOptions = false;
 
   // Set default target location if available
   $: if (AVAILABLE_TARGET_LOCATIONS && AVAILABLE_TARGET_LOCATIONS.length > 0 && !targetLocation) {
@@ -56,15 +60,22 @@
     showTargetOptions = false;
   }
 
+  function selectErrorType(errorTypeValue) {
+    errorType = errorTypeValue;
+    error = ERROR_TYPE_LABELS[errorTypeValue] || errorTypeValue;
+    showErrorTypeOptions = false;
+  }
+
   function toggleResult() {
     result = result === 'success' ? 'fail' : 'success';
     if (result === 'success') {
       error = '';
+      errorType = '';
     }
   }
 
   // Reactive computed value for button state
-  $: canComplete = targetLocation && (result === 'success' || (result === 'fail' && error.trim()));
+  $: canComplete = targetLocation && (result === 'success' || (result === 'fail' && errorType.trim()));
 
   function canCompleteShot() {
     return canComplete;
@@ -210,19 +221,42 @@
         </div>
       </div>
 
-      <!-- Error Message (if failed) -->
+      <!-- Error Type (if failed) -->
       {#if result === 'fail'}
         <div>
-          <label for="error" class="block text-sm font-medium text-ios-gray-700 mb-2">
+          <label for="error-type" class="block text-sm font-medium text-ios-gray-700 mb-2">
             What went wrong?
           </label>
-          <textarea
-            id="error"
-            bind:value={error}
-            placeholder="Describe what happened..."
-            class="input-field h-20 resize-none"
-            maxlength="200"
-          ></textarea>
+          <button
+            id="error-type"
+            on:click={() => showErrorTypeOptions = !showErrorTypeOptions}
+            class="w-full flex items-center justify-between p-4 border border-ios-gray-300 rounded-xl hover:border-ios-blue transition-colors"
+          >
+            <span class="text-ios-gray-700">
+              {errorType ? ERROR_TYPE_LABELS[errorType] : 'Select error type'}
+            </span>
+            <svg 
+              class="w-5 h-5 text-ios-gray-400 transition-transform {showErrorTypeOptions ? 'rotate-180' : ''}"
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {#if showErrorTypeOptions}
+            <div class="mt-3 grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
+              {#each AVAILABLE_ERROR_TYPES as errorTypeValue}
+                <button
+                  on:click={() => selectErrorType(errorTypeValue)}
+                  class="p-3 rounded-xl border border-ios-gray-200 hover:border-ios-blue hover:bg-ios-blue/5 transition-colors text-left"
+                >
+                  <span class="font-medium text-ios-gray-900">
+                    {ERROR_TYPE_LABELS[errorTypeValue] || errorTypeValue}
+                  </span>
+                </button>
+              {/each}
+            </div>
+          {/if}
         </div>
       {/if}
 

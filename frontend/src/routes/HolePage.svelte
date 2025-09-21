@@ -4,7 +4,7 @@
   import { currentRound, currentHole, error, isLoading } from '../stores/app.js';
   import { roundsApi, shotsApi } from '../lib/api.js';
   import { gpsManager } from '../lib/gps.js';
-  import { AVAILABLE_CLUBS, AVAILABLE_LOCATIONS, AVAILABLE_TARGET_LOCATIONS, LOCATION_LABELS, CLUB_LABELS } from '../stores/app.js';
+  import { AVAILABLE_CLUBS, AVAILABLE_LOCATIONS, AVAILABLE_TARGET_LOCATIONS, LOCATION_LABELS, CLUB_LABELS, AVAILABLE_ERROR_TYPES, ERROR_TYPE_LABELS } from '../stores/app.js';
   import { fade, fly } from 'svelte/transition';
   import ShotItem from '../components/ShotItem.svelte';
   import ShotForm from '../components/ShotForm.svelte';
@@ -26,6 +26,7 @@
   $: shots.length, sortedShots = getShotsSortedByTime();
   let shotStartLocation = null;
   let currentDistance = 0;
+  let distanceUpdateTrigger = 0; // For reactive updates
 
   // Reactive hole number
   $: holeNumber = holeId ? parseInt(holeId) : null;
@@ -40,10 +41,13 @@
     // Listen for distance updates
     gpsManager.onDistanceUpdate((distance) => {
       currentDistance = distance;
+      // Update individual shot distances
       pendingShots = pendingShots.map(shot => ({
         ...shot,
-        distance
+        distance: gpsManager.getShotDistance(shot.id) || distance
       }));
+      // Trigger reactive update
+      distanceUpdateTrigger++;
     });
   });
 
@@ -100,6 +104,18 @@
         player: shot.player || round.players?.find(p => p.id === shot.playerId),
         distance: shot.distance || 0
       }));
+
+      // Start GPS tracking and individual tracking for incomplete shots
+      if (pendingShots.length > 0) {
+        gpsManager.startTracking().then(success => {
+          if (success) {
+            // Start individual tracking for each incomplete shot
+            pendingShots.forEach(shot => {
+              gpsManager.startShotTracking(shot.id);
+            });
+          }
+        });
+      }
       
     } catch (err) {
       console.error('Failed to load hole data:', err);
@@ -169,10 +185,13 @@
       // Add to pending shots array immediately
       pendingShots = [...pendingShots, newPendingShot];
 
-      // Start GPS tracking for distance measurement
+      // Start GPS tracking for distance measurement (global)
       gpsManager.startTracking().then(success => {
         if (!success) {
           error.set('Failed to start GPS tracking');
+        } else {
+          // Start individual tracking for this shot
+          gpsManager.startShotTracking(newShot.id);
         }
       });
       
@@ -230,6 +249,9 @@
       // Remove from pending shots (if it was there)
       pendingShots = pendingShots.filter(shot => shot.id !== shotId);
       
+      // Stop individual tracking for this shot
+      gpsManager.stopShotTracking(shotId);
+      
       // Stop GPS tracking if no more pending shots
       if (pendingShots.length === 0) {
         gpsManager.stopTracking();
@@ -255,8 +277,13 @@
     if (shotId) {
       // Cancel specific shot
       pendingShots = pendingShots.filter(shot => shot.id !== shotId);
+      // Stop individual tracking for this shot
+      gpsManager.stopShotTracking(shotId);
     } else {
       // Cancel all pending shots
+      pendingShots.forEach(shot => {
+        gpsManager.stopShotTracking(shot.id);
+      });
       pendingShots = [];
     }
     
@@ -283,6 +310,23 @@
     }
     const maxShotNumber = Math.max(...playerShots.map(shot => shot.shotNumber));
     return maxShotNumber + 1;
+  }
+
+  function getDefaultLocation(playerId) {
+    const playerShots = shots.filter(shot => shot.playerId === playerId);
+    if (playerShots.length === 0) {
+      return 'tee'; // First shot always starts from tee
+    }
+    
+    // Find the most recent completed shot for this player
+    const completedShots = playerShots.filter(shot => shot.targetLocation && shot.result);
+    if (completedShots.length === 0) {
+      return 'tee'; // No completed shots, start from tee
+    }
+    
+    // Sort by shot number and get the latest
+    const latestShot = completedShots.sort((a, b) => b.shotNumber - a.shotNumber)[0];
+    return latestShot.targetLocation;
   }
 
   function getShotsSortedByTime() {
@@ -424,7 +468,7 @@
               <span class="text-xs opacity-90">{pendingShot.club}</span>
             </div>
             <div class="flex flex-col items-center">
-              <span class="text-lg font-bold">{Math.round(pendingShot.distance || currentDistance)}m</span>
+              <span class="text-lg font-bold">{Math.round(pendingShot.distance || gpsManager.getShotDistance(pendingShot.id) || 0)}m</span>
               <span class="text-xs opacity-90">Complete</span>
             </div>
           </button>
@@ -438,6 +482,7 @@
         players={round.players}
         {AVAILABLE_CLUBS}
         {AVAILABLE_LOCATIONS}
+        {getDefaultLocation}
         on:close={() => showShotForm = false}
         on:start-shot={startShot}
       />
@@ -457,7 +502,9 @@
         pendingShot={currentPendingShot}
         {AVAILABLE_TARGET_LOCATIONS}
         {LOCATION_LABELS}
-        distance={currentPendingShot.distance || currentDistance}
+        {AVAILABLE_ERROR_TYPES}
+        {ERROR_TYPE_LABELS}
+        distance={currentPendingShot.distance || gpsManager.getShotDistance(currentPendingShot.id) || 0}
         on:complete={(event) => completeShot(currentPendingShot.id, event.detail)}
         on:cancel={() => cancelShot(currentPendingShot.id)}
       />

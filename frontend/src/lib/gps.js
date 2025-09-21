@@ -7,6 +7,7 @@ class GPSManager {
     this.currentLocation = null;
     this.isTracking = false;
     this.distanceUpdateCallbacks = [];
+    this.activeTrackings = new Map(); // Track individual shot distances
   }
 
   // Start GPS tracking
@@ -61,9 +62,53 @@ class GPSManager {
     this.startLocation = null;
     this.currentLocation = null;
     this.distanceUpdateCallbacks = [];
+    this.activeTrackings.clear();
     gpsTracking.set(false);
     gpsLocation.set(null);
     gpsDistance.set(0);
+  }
+
+  // Start tracking for a specific shot
+  startShotTracking(shotId) {
+    if (!this.currentLocation) {
+      console.warn('No current location available for shot tracking');
+      return false;
+    }
+
+    const shotStartLocation = {
+      latitude: this.currentLocation.latitude,
+      longitude: this.currentLocation.longitude,
+      timestamp: this.currentLocation.timestamp
+    };
+
+    this.activeTrackings.set(shotId, {
+      startLocation: shotStartLocation,
+      currentDistance: 0
+    });
+
+    console.log(`Started tracking for shot ${shotId} from:`, shotStartLocation);
+    return true;
+  }
+
+  // Stop tracking for a specific shot
+  stopShotTracking(shotId) {
+    this.activeTrackings.delete(shotId);
+    console.log(`Stopped tracking for shot ${shotId}`);
+  }
+
+  // Get distance for a specific shot
+  getShotDistance(shotId) {
+    const tracking = this.activeTrackings.get(shotId);
+    if (!tracking || !this.currentLocation) {
+      return 0;
+    }
+
+    return this.calculateDistance(
+      tracking.startLocation.latitude,
+      tracking.startLocation.longitude,
+      this.currentLocation.latitude,
+      this.currentLocation.longitude
+    );
   }
 
   // Get current position (one-time)
@@ -88,6 +133,7 @@ class GPSManager {
 
     gpsLocation.set(this.currentLocation);
 
+    // Update global distance if we have a start location
     if (this.startLocation) {
       const distance = this.calculateDistance(
         this.startLocation.latitude,
@@ -107,6 +153,17 @@ class GPSManager {
         }
       });
     }
+
+    // Update distances for all active shot trackings
+    this.activeTrackings.forEach((tracking, shotId) => {
+      const shotDistance = this.calculateDistance(
+        tracking.startLocation.latitude,
+        tracking.startLocation.longitude,
+        this.currentLocation.latitude,
+        this.currentLocation.longitude
+      );
+      tracking.currentDistance = Math.round(shotDistance);
+    });
   }
 
   // Handle position errors

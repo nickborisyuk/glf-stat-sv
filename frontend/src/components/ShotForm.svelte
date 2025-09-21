@@ -5,6 +5,7 @@
   export let players;
   export let AVAILABLE_CLUBS;
   export let AVAILABLE_LOCATIONS;
+  export let getDefaultLocation;
 
   const dispatch = createEventDispatcher();
 
@@ -16,6 +17,14 @@
 
   // Reactive computed value for button state
   $: canStart = selectedPlayer && selectedClub && selectedLocation;
+
+  // Set default location when player is selected
+  $: if (selectedPlayer && getDefaultLocation) {
+    const defaultLoc = getDefaultLocation(selectedPlayer.id);
+    if (defaultLoc && !selectedLocation) {
+      selectedLocation = defaultLoc;
+    }
+  }
 
   function startShot() {
     if (!selectedPlayer || !selectedClub || !selectedLocation) {

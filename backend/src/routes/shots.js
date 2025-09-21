@@ -12,14 +12,14 @@ const AVAILABLE_CLUBS = [
   '7-Iron', '8-Iron', '9-Iron', 'PW', 'SW', 'LW', 'Putter'
 ];
 
-// Available locations
+// Available locations (From Where)
 const AVAILABLE_LOCATIONS = [
-  'tee', 'fairway', 'rough', 'bunker', 'water', 'green', 'off-course'
+  'tee', 'left_rough', 'right_rough', 'fairway', 'green', 'bunker', 'left_woods', 'right_woods', 'downgrade', 'fringe'
 ];
 
-// Available target locations
+// Available target locations (Where did the ball land)
 const AVAILABLE_TARGET_LOCATIONS = [
-  'fairway', 'green', 'rough', 'bunker', 'water', 'off-course'
+  'tee', 'left_rough', 'right_rough', 'fairway', 'green', 'bunker', 'left_woods', 'right_woods', 'downgrade', 'water', 'hole', 'fringe'
 ];
 
 // Available results
