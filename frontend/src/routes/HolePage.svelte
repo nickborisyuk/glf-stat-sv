@@ -398,7 +398,7 @@
     </div>
 
     <!-- Add Shot Button -->
-    <div class="fixed bottom-20 left-6 right-6">
+    <div class="fixed bottom-20 left-6 right-6 z-50">
       <button
         on:click={() => showShotForm = true}
         class="w-full btn-primary py-4 flex items-center justify-center gap-2"
@@ -412,7 +412,7 @@
 
     <!-- Floating Complete Buttons for Pending Shots -->
     {#if pendingShots.length > 0}
-      <div class="fixed top-20 right-6 space-y-3">
+      <div class="fixed top-20 right-6 space-y-3 z-50">
         {#each pendingShots as pendingShot}
           <button
             on:click={() => openCompleteModal(pendingShot)}
