@@ -103,12 +103,12 @@ class GPSManager {
       return 0;
     }
 
-    return this.calculateDistance(
+    return Math.round(this.calculateDistance(
       tracking.startLocation.latitude,
       tracking.startLocation.longitude,
       this.currentLocation.latitude,
       this.currentLocation.longitude
-    );
+    ));
   }
 
   // Get current position (one-time)

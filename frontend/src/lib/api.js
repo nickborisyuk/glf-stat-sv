@@ -1,4 +1,5 @@
 import { API_BASE, API_TIMEOUT, buildApiUrl } from '../config/api.js';
+import { cacheBuster } from './cache-buster.js';
 
 class ApiError extends Error {
   constructor(message, status, data) {
@@ -9,7 +10,8 @@ class ApiError extends Error {
 }
 
 async function request(endpoint, options = {}) {
-  const url = buildApiUrl(endpoint);
+  const baseUrl = buildApiUrl(endpoint);
+  const url = cacheBuster.bustCache(baseUrl);
   const config = {
     headers: {
       'Content-Type': 'application/json',

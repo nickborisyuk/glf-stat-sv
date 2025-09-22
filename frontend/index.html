@@ -25,6 +25,17 @@
 </head>
 <body>
     <div id="app"></div>
+    <script>
+        // Generate unique cache-busting parameter
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substr(2, 9);
+        const cacheBuster = `v=${timestamp}&r=${random}`;
+        console.log('Cache buster initialized:', cacheBuster);
+        
+        // Store for use in the app
+        window.__CACHE_BUSTER__ = cacheBuster;
+        window.__APP_VERSION__ = timestamp;
+    </script>
     <script type="module" src="/src/main.js"></script>
 </body>
 </html>

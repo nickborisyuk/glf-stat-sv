@@ -25,7 +25,7 @@
   onMount(() => {
     // Initialize distance from GPS if not provided
     if (!distance) {
-      distance = $gpsDistance;
+      distance = Math.round($gpsDistance);
     }
   });
 
@@ -112,7 +112,7 @@
           <div class="w-2 h-2 bg-ios-blue rounded-full animate-pulse"></div>
           <span class="text-sm font-medium text-ios-blue">GPS Distance</span>
         </div>
-        <span class="text-2xl font-bold text-ios-blue">{formatDistance($gpsDistance)}</span>
+        <span class="text-2xl font-bold text-ios-blue">{formatDistance(Math.round($gpsDistance))}</span>
       </div>
       {#if $gpsError}
         <p class="text-xs text-ios-red mt-1">GPS Error: {$gpsError}</p>
@@ -135,7 +135,7 @@
           placeholder="Enter distance"
         />
         <p class="text-xs text-ios-gray-500 mt-1">
-          GPS measured: {formatDistance($gpsDistance)}
+          GPS measured: {formatDistance(Math.round($gpsDistance))}
         </p>
       </div>
 

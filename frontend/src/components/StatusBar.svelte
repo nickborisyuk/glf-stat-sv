@@ -40,7 +40,7 @@
       {#if $gpsTracking}
         <div class="flex items-center gap-1">
           <div class="w-2 h-2 bg-ios-green rounded-full animate-pulse"></div>
-          <span class="text-ios-green font-medium">{$gpsDistance}m</span>
+          <span class="text-ios-green font-medium">{Math.round($gpsDistance)}m</span>
         </div>
       {:else if $gpsError}
         <div class="flex items-center gap-1">
