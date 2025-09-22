@@ -339,4 +339,162 @@ router.get('/global', async (req, res) => {
   }
 });
 
+// GET /api/stats/players/:id - Get detailed player statistics
+router.get('/players/:id', async (req, res) => {
+  try {
+    const { id: playerId } = req.params;
+
+    // Check if player exists
+    const player = await prisma.player.findUnique({
+      where: { id: playerId }
+    });
+
+    if (!player) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    // Get all shots for this player
+    const shots = await prisma.shot.findMany({
+      where: { 
+        playerId,
+        result: { not: null }, // Only completed shots
+        distance: { gt: 0 }    // Only shots with distance
+      },
+      include: { 
+        round: {
+          include: {
+            roundPlayers: {
+              include: { player: true }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Calculate club statistics
+    const clubStats = {};
+    shots.forEach(shot => {
+      if (!clubStats[shot.club]) {
+        clubStats[shot.club] = {
+          club: shot.club,
+          totalShots: 0,
+          successfulShots: 0,
+          failedShots: 0,
+          totalDistance: 0,
+          distances: [],
+          rounds: new Set()
+        };
+      }
+
+      clubStats[shot.club].totalShots++;
+      clubStats[shot.club].totalDistance += shot.distance;
+      clubStats[shot.club].distances.push(shot.distance);
+      clubStats[shot.club].rounds.add(shot.roundId);
+
+      if (shot.result === 'success') {
+        clubStats[shot.club].successfulShots++;
+      } else {
+        clubStats[shot.club].failedShots++;
+      }
+    });
+
+    // Calculate final club statistics
+    const finalClubStats = Object.values(clubStats).map(club => {
+      const avgDistance = club.totalShots > 0 ? Math.round(club.totalDistance / club.totalShots) : 0;
+      const maxDistance = club.distances.length > 0 ? Math.max(...club.distances) : 0;
+      const minDistance = club.distances.length > 0 ? Math.min(...club.distances) : 0;
+      const successRate = club.totalShots > 0 ? ((club.successfulShots / club.totalShots) * 100).toFixed(1) : 0;
+
+      return {
+        club: club.club,
+        totalShots: club.totalShots,
+        successfulShots: club.successfulShots,
+        failedShots: club.failedShots,
+        successRate: parseFloat(successRate),
+        averageDistance: avgDistance,
+        maxDistance: maxDistance,
+        minDistance: minDistance,
+        totalDistance: club.totalDistance,
+        roundsPlayed: club.rounds.size
+      };
+    }).sort((a, b) => b.totalShots - a.totalShots);
+
+    // Calculate overall statistics
+    const totalShots = shots.length;
+    const totalSuccessfulShots = shots.filter(s => s.result === 'success').length;
+    const totalFailedShots = shots.filter(s => s.result === 'fail').length;
+    const totalPenaltyShots = shots.filter(s => s.isPenalty).length;
+    const totalDistance = shots.reduce((sum, shot) => sum + shot.distance, 0);
+    const averageDistance = totalShots > 0 ? Math.round(totalDistance / totalShots) : 0;
+    const overallSuccessRate = totalShots > 0 ? ((totalSuccessfulShots / totalShots) * 100).toFixed(1) : 0;
+
+    // Get rounds played
+    const roundsPlayed = [...new Set(shots.map(shot => shot.roundId))].length;
+
+    // Get recent performance (last 10 rounds)
+    const recentRounds = await prisma.round.findMany({
+      where: {
+        roundPlayers: {
+          some: { playerId }
+        }
+      },
+      include: {
+        shots: {
+          where: { 
+            playerId,
+            result: { not: null }
+          }
+        }
+      },
+      orderBy: { date: 'desc' },
+      take: 10
+    });
+
+    const recentPerformance = recentRounds.map(round => {
+      const roundShots = round.shots;
+      const roundTotal = roundShots.length;
+      const roundSuccessful = roundShots.filter(s => s.result === 'success').length;
+      const roundAvgDistance = roundTotal > 0 ? 
+        Math.round(roundShots.reduce((sum, shot) => sum + shot.distance, 0) / roundTotal) : 0;
+
+      return {
+        roundId: round.id,
+        date: round.date,
+        course: round.course,
+        totalShots: roundTotal,
+        successfulShots: roundSuccessful,
+        successRate: roundTotal > 0 ? ((roundSuccessful / roundTotal) * 100).toFixed(1) : 0,
+        averageDistance: roundAvgDistance
+      };
+    });
+
+    const playerStats = {
+      player: {
+        id: player.id,
+        name: player.name,
+        color: player.color,
+        createdAt: player.createdAt
+      },
+      overall: {
+        totalShots,
+        successfulShots: totalSuccessfulShots,
+        failedShots: totalFailedShots,
+        penaltyShots: totalPenaltyShots,
+        successRate: parseFloat(overallSuccessRate),
+        averageDistance,
+        totalDistance,
+        roundsPlayed
+      },
+      clubStats: finalClubStats,
+      recentPerformance
+    };
+
+    res.json(playerStats);
+  } catch (error) {
+    console.error('Error fetching player statistics:', error);
+    res.status(500).json({ error: 'Failed to fetch player statistics' });
+  }
+});
+
 module.exports = router;

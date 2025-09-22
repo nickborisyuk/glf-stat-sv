@@ -1,15 +1,22 @@
 <script>
   import { onMount } from 'svelte';
-  import { rounds, error, isLoading } from '../stores/app.js';
-  import { statsApi, roundsApi } from '../lib/api.js';
+  import { rounds, players, error, isLoading } from '../stores/app.js';
+  import { statsApi, roundsApi, playersApi } from '../lib/api.js';
   import { fade } from 'svelte/transition';
   import StatsCard from '../components/StatsCard.svelte';
   import ClubStatsChart from '../components/ClubStatsChart.svelte';
   import LocationStatsChart from '../components/LocationStatsChart.svelte';
+  import PlayerStatsCard from '../components/PlayerStatsCard.svelte';
+  import PlayerDetailedStats from '../components/PlayerDetailedStats.svelte';
 
   let globalStats = null;
   let selectedRound = null;
   let roundStats = null;
+  
+  // Player statistics
+  let selectedPlayer = null;
+  let playerStats = null;
+  let playersWithStats = [];
 
   onMount(async () => {
     await loadData();
@@ -18,18 +25,42 @@
   async function loadData() {
     try {
       isLoading.set(true);
-      const [roundsData, globalStatsData] = await Promise.all([
+      const [roundsData, globalStatsData, playersData] = await Promise.all([
         roundsApi.getAll(),
-        statsApi.getGlobalStats()
+        statsApi.getGlobalStats(),
+        playersApi.getAll()
       ]);
       
       rounds.set(roundsData);
+      players.set(playersData);
       globalStats = globalStatsData;
+      
+      // Load player statistics
+      await loadPlayerStats();
     } catch (err) {
       console.error('Failed to load stats data:', err);
       error.set('Failed to load statistics');
     } finally {
       isLoading.set(false);
+    }
+  }
+
+  async function loadPlayerStats() {
+    try {
+      const playersData = $players;
+      const statsPromises = playersData.map(async (player) => {
+        try {
+          const stats = await statsApi.getPlayerStats(player.id);
+          return { player, stats };
+        } catch (err) {
+          console.warn(`Failed to load stats for player ${player.name}:`, err);
+          return { player, stats: null };
+        }
+      });
+      
+      playersWithStats = await Promise.all(statsPromises);
+    } catch (err) {
+      console.error('Failed to load player statistics:', err);
     }
   }
 
@@ -45,6 +76,16 @@
 
   function formatPercentage(value) {
     return `${parseFloat(value).toFixed(1)}%`;
+  }
+
+  async function selectPlayer(playerData) {
+    selectedPlayer = playerData.player;
+    try {
+      playerStats = await statsApi.getPlayerStats(playerData.player.id);
+    } catch (err) {
+      console.error('Failed to load player statistics:', err);
+      error.set('Failed to load player statistics');
+    }
   }
 
   function formatNumber(value) {
@@ -242,6 +283,50 @@
         </div>
         <h3 class="text-lg font-semibold text-ios-gray-900 mb-2">No Statistics Yet</h3>
         <p class="text-ios-gray-600">Play some rounds to see your statistics</p>
+      </div>
+    {/if}
+
+    <!-- Player Statistics Section -->
+    {#if $players.length > 0}
+      <div transition:fade>
+        <h2 class="text-lg font-semibold text-ios-gray-900 mb-4">Player Statistics</h2>
+        
+        {#if playersWithStats.length > 0}
+          <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
+            {#each playersWithStats as playerData}
+              <PlayerStatsCard 
+                player={playerData.player} 
+                stats={playerData.stats}
+                on:viewStats={(event) => selectPlayer(event.detail)}
+              />
+            {/each}
+          </div>
+
+          <!-- Detailed Player Stats -->
+          {#if selectedPlayer && playerStats}
+            <PlayerDetailedStats player={selectedPlayer} stats={playerStats} />
+          {/if}
+        {:else}
+          <div class="bg-white rounded-2xl p-8 shadow-sm border border-ios-gray-200 text-center">
+            <div class="w-16 h-16 mx-auto mb-4 bg-ios-gray-100 rounded-full flex items-center justify-center">
+              <svg class="w-8 h-8 text-ios-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-ios-gray-900 mb-2">No Player Statistics</h3>
+            <p class="text-ios-gray-600">Play some rounds to see player statistics</p>
+          </div>
+        {/if}
+      </div>
+    {:else}
+      <div class="bg-white rounded-2xl p-8 shadow-sm border border-ios-gray-200 text-center" transition:fade>
+        <div class="w-16 h-16 mx-auto mb-4 bg-ios-gray-100 rounded-full flex items-center justify-center">
+          <svg class="w-8 h-8 text-ios-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+        </div>
+        <h3 class="text-lg font-semibold text-ios-gray-900 mb-2">No Players Yet</h3>
+        <p class="text-ios-gray-600">Add some players to see their statistics</p>
       </div>
     {/if}
   </div>

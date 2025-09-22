@@ -115,6 +115,7 @@ export const statsApi = {
   getClubStats: (roundId) => request(`/stats/rounds/${roundId}/clubs`),
   getLocationStats: (roundId) => request(`/stats/rounds/${roundId}/locations`),
   getGlobalStats: () => request('/stats/global'),
+  getPlayerStats: (playerId) => request(`/stats/players/${playerId}`),
 };
 
 // Health check
