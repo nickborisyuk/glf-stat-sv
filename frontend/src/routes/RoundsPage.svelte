@@ -86,37 +86,21 @@
       <div class="flex items-center gap-3">
         <h1 class="text-2xl font-bold text-ios-gray-900">Rounds</h1>
         {#if $selectedPlayer}
-          <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-ios-blue/10 border border-ios-blue/20">
+          <button
+            on:click={() => {
+              sessionStorage.removeItem('selectedPlayerId');
+              window.location.href = '#/';
+            }}
+            class="flex items-center gap-2 px-3 py-1 rounded-full bg-ios-blue/10 border border-ios-blue/20 hover:bg-ios-blue/20 transition-colors"
+            title="Change Player"
+          >
             <div 
               class="w-4 h-4 rounded-full border border-white shadow-sm"
               style="background-color: {$selectedPlayer.color}"
             ></div>
             <span class="text-sm font-medium text-ios-blue">{$selectedPlayer.name}</span>
-          </div>
+          </button>
         {/if}
-      </div>
-      <div class="flex items-center gap-2">
-        <button
-          on:click={() => {
-            sessionStorage.removeItem('selectedPlayerId');
-            window.location.href = '#/';
-          }}
-          class="btn-secondary text-sm px-3 py-2"
-          title="Change Player"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-          </svg>
-        </button>
-        <button
-          on:click={() => showAddModal = true}
-          class="btn-primary text-sm px-4 py-2 flex items-center gap-2 whitespace-nowrap"
-        >
-          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          <span class="whitespace-nowrap">New Round</span>
-        </button>
       </div>
     </div>
   </div>
@@ -164,6 +148,19 @@
         {/each}
       </div>
     {/if}
+  </div>
+
+  <!-- Add Round Button -->
+  <div class="fixed bottom-20 left-6 right-6 z-50">
+    <button
+      on:click={() => showAddModal = true}
+      class="w-full btn-primary py-4 flex items-center justify-center gap-2"
+    >
+      <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+      </svg>
+      <span class="whitespace-nowrap">New Round</span>
+    </button>
   </div>
 
   <!-- Add Round Modal -->

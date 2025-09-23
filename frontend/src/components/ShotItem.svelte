@@ -115,10 +115,12 @@
     {#if isPending}
       <button
         on:click={completeShot}
-        class="flex-shrink-0 px-3 py-1 bg-ios-blue text-white text-sm font-medium rounded-lg hover:bg-ios-blue/90 transition-colors"
+        class="flex-shrink-0 p-2 bg-ios-blue text-white rounded-lg hover:bg-ios-blue/90 transition-colors"
         title="Complete shot"
       >
-        Complete
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
       </button>
     {/if}
     

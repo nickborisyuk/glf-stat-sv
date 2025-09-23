@@ -2,6 +2,7 @@
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { gpsDistance, gpsError } from '../stores/app.js';
   import { fade, fly } from 'svelte/transition';
+  import * as gpsManager from '../lib/gps.js';
 
   export let pendingShot;
   export let AVAILABLE_TARGET_LOCATIONS;
@@ -28,6 +29,9 @@
     if (!distance) {
       distance = Math.round($gpsDistance);
     }
+    
+    // Check if there's a next shot and set targetLocation accordingly
+    setTargetLocationFromNextShot();
   });
 
   // Reactive statement to update distance from GPS if not manually set
@@ -57,6 +61,36 @@
     return 'tee';
   }
 
+  function setTargetLocationFromNextShot() {
+    // Find the next shot for the same player
+    const nextShot = allShots.find(shot => 
+      shot.playerId === pendingShot.playerId &&
+      shot.shotNumber === pendingShot.shotNumber + 1 &&
+      shot.location // Next shot must have a location (meaning it's been created)
+    );
+    
+    if (nextShot && nextShot.location) {
+      // Set targetLocation to the location of the next shot
+      targetLocation = nextShot.location;
+      console.log('CompleteShotModal: Auto-set targetLocation from next shot:', nextShot.location);
+    }
+  }
+
+  function restartGpsForNextShot() {
+    // Find the next shot for the same player
+    const nextShot = allShots.find(shot => 
+      shot.playerId === pendingShot.playerId &&
+      shot.shotNumber === pendingShot.shotNumber + 1 &&
+      shot.location // Next shot must have a location (meaning it's been created)
+    );
+    
+    if (nextShot) {
+      // Restart GPS tracking for the next shot from current position
+      gpsManager.startShotTracking(nextShot.id);
+      console.log('CompleteShotModal: Restarted GPS tracking for next shot:', nextShot.id);
+    }
+  }
+
   function completeShot() {
     if (!pendingShot.isPenalty && !targetLocation) {
       console.error('CompleteShotModal: targetLocation is required for non-penalty shots');
@@ -74,6 +108,10 @@
     console.log('CompleteShotModal: dispatching complete with data:', shotData);
     console.log('CompleteShotModal: error value:', error);
     console.log('CompleteShotModal: errorType value:', errorType);
+    
+    // Restart GPS tracking for next shot if it exists
+    restartGpsForNextShot();
+    
     dispatch('complete', shotData);
   }
 

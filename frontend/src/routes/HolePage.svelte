@@ -504,30 +504,25 @@
             <p class="text-ios-gray-600 text-sm">{round.course}</p>
           </div>
           {#if $selectedPlayer}
-            <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-ios-blue/10 border border-ios-blue/20">
+            <button
+              on:click={() => {
+                sessionStorage.removeItem('selectedPlayerId');
+                window.location.href = '#/';
+              }}
+              class="flex items-center gap-2 px-3 py-1 rounded-full bg-ios-blue/10 border border-ios-blue/20 hover:bg-ios-blue/20 transition-colors"
+              title="Change Player"
+            >
               <div 
                 class="w-4 h-4 rounded-full border border-white shadow-sm"
                 style="background-color: {$selectedPlayer.color}"
               ></div>
               <span class="text-sm font-medium text-ios-blue">{$selectedPlayer.name}</span>
-            </div>
+            </button>
           {/if}
         </div>
         <div class="flex items-center gap-2">
-                  <button
-                    on:click={() => {
-                      sessionStorage.removeItem('selectedPlayerId');
-                      window.location.href = '#/';
-                    }}
-                    class="btn-secondary text-sm px-3 py-2"
-                    title="Change Player"
-                  >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-            </svg>
-          </button>
           <a href="/rounds/{roundId}/holes" use:link class="btn-secondary text-sm px-4 py-2">
-            Back to Holes
+            To Holes
           </a>
         </div>
       </div>
