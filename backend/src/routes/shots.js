@@ -14,12 +14,12 @@ const AVAILABLE_CLUBS = [
 
 // Available locations (From Where)
 const AVAILABLE_LOCATIONS = [
-  'tee', 'left_rough', 'right_rough', 'fairway', 'green', 'bunker', 'left_woods', 'right_woods', 'downgrade', 'fringe'
+  'tee', 'fairway', 'rough', 'bunker', 'woods', 'green', 'anywhere'
 ];
 
 // Available target locations (Where did the ball land)
 const AVAILABLE_TARGET_LOCATIONS = [
-  'tee', 'left_rough', 'right_rough', 'fairway', 'green', 'bunker', 'left_woods', 'right_woods', 'downgrade', 'water', 'hole', 'fringe'
+  'tee', 'fairway', 'rough', 'bunker', 'woods', 'green', 'anywhere', 'water', 'hole', 'out_of_bounds'
 ];
 
 // Available results
@@ -50,7 +50,8 @@ router.post('/', [
   body('targetLocation').optional().isIn(AVAILABLE_TARGET_LOCATIONS).withMessage('Invalid target location'),
   body('result').optional().isIn(AVAILABLE_RESULTS).withMessage('Result must be success or fail'),
   body('error').optional().isString(),
-  body('isPenalty').optional().isBoolean()
+  body('isPenalty').optional().isBoolean(),
+  body('numberOfStrokes').optional().isInt({ min: 1, max: 10 }).withMessage('Number of strokes must be between 1 and 10')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -69,7 +70,8 @@ router.post('/', [
       targetLocation,
       result,
       error,
-      isPenalty = false
+      isPenalty = false,
+      numberOfStrokes = 1
     } = req.body;
 
     // Validate that round and player exist and player is in the round
@@ -111,7 +113,8 @@ router.post('/', [
       club,
       distance,
       location,
-      isPenalty: isPenalty || false
+      isPenalty: isPenalty || false,
+      numberOfStrokes: numberOfStrokes || 1
     };
 
     // Only add optional fields if they are provided
@@ -148,7 +151,8 @@ router.put('/:id', [
   body('targetLocation').optional().isIn(AVAILABLE_TARGET_LOCATIONS),
   body('result').optional().isIn(AVAILABLE_RESULTS),
   body('error').optional().isString(),
-  body('isPenalty').optional().isBoolean()
+  body('isPenalty').optional().isBoolean(),
+  body('numberOfStrokes').optional().isInt({ min: 1, max: 10 })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -274,6 +278,36 @@ router.post('/penalty', [
   } catch (error) {
     console.error('Error creating penalty shot:', error);
     res.status(500).json({ error: 'Failed to create penalty shot' });
+  }
+});
+
+// GET /api/shots/round/:roundId - Get all shots for a round
+router.get('/round/:roundId', async (req, res) => {
+  try {
+    const { roundId } = req.params;
+
+    // Validate roundId format
+    if (!roundId || typeof roundId !== 'string') {
+      return res.status(400).json({ error: 'Valid round ID is required' });
+    }
+
+    const shots = await prisma.shot.findMany({
+      where: {
+        roundId: roundId
+      },
+      include: {
+        player: true
+      },
+      orderBy: [
+        { holeNumber: 'asc' },
+        { shotNumber: 'asc' }
+      ]
+    });
+
+    res.json(shots);
+  } catch (error) {
+    console.error('Error fetching shots for round:', error);
+    res.status(500).json({ error: 'Failed to fetch shots for round' });
   }
 });
 

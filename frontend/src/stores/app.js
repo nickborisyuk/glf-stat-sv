@@ -75,28 +75,26 @@ export const AVAILABLE_CLUBS = [
 
 // Available locations (From Where)
 export const AVAILABLE_LOCATIONS = [
-  'tee', 'left_rough', 'right_rough', 'fairway', 'green', 'bunker', 'left_woods', 'right_woods', 'downgrade', 'fringe'
+  'tee', 'fairway', 'rough', 'bunker', 'woods', 'green', 'anywhere'
 ];
 
 // Available target locations (Where did the ball land)
 export const AVAILABLE_TARGET_LOCATIONS = [
-  'tee', 'left_rough', 'right_rough', 'fairway', 'green', 'bunker', 'left_woods', 'right_woods', 'downgrade', 'water', 'hole', 'fringe'
+  'tee', 'fairway', 'rough', 'bunker', 'woods', 'green', 'anywhere', 'water', 'hole', 'out_of_bounds'
 ];
 
 // Location labels for display
 export const LOCATION_LABELS = {
-  'tee': 'Ти',
-  'left_rough': 'Левый раф',
-  'right_rough': 'Правый раф',
-  'fairway': 'Fairway',
-  'green': 'Грин',
+  'tee': 'Тии',
+  'fairway': 'Файервэй',
+  'rough': 'Раф',
   'bunker': 'Бункер',
-  'left_woods': 'Левый лес',
-  'right_woods': 'Правый лес',
-  'downgrade': 'Доугое',
+  'woods': 'Лес',
+  'green': 'Грин',
+  'anywhere': 'Абы что',
   'water': 'Вода',
   'hole': 'Лунка',
-  'fringe': 'Прегрин',
+  'out_of_bounds': 'Вне игры',
   'penalty': 'Penalty'
 };
 

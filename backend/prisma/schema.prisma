@@ -60,6 +60,7 @@ model Shot {
   result        String?
   error         String?
   isPenalty     Boolean  @default(false) @map("is_penalty")
+  numberOfStrokes Int    @default(1) @map("number_of_strokes")
   createdAt     DateTime @default(now()) @map("created_at")
 
   round  Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)

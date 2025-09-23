@@ -31,6 +31,11 @@
   // Reactive hole number
   $: holeNumber = holeId ? parseInt(holeId) : null;
 
+  // Calculate total strokes for the selected player on this hole
+  $: totalStrokes = $selectedPlayer ? shots
+    .filter(shot => shot.playerId === $selectedPlayer.id)
+    .reduce((total, shot) => total + (shot.numberOfStrokes || 1), 0) : 0;
+
   async function loadSelectedPlayerFromSession() {
     const playerId = sessionStorage.getItem('selectedPlayerId');
     if (playerId) {
@@ -298,15 +303,16 @@
       console.log('HolePage: completeShot called with shotId:', shotId, 'shotData:', shotData);
       
       // Validate required fields
-      if (!shotData.targetLocation) {
-        throw new Error('Target location is required');
+      if (!shotData.isPenalty && !shotData.targetLocation) {
+        throw new Error('Target location is required for non-penalty shots');
       }
       
       const updateData = {
         distance: parseInt(shotData.distance) || 0,
         targetLocation: shotData.targetLocation,
         result: shotData.result,
-        isPenalty: Boolean(shotData.isPenalty)
+        isPenalty: Boolean(shotData.isPenalty),
+        numberOfStrokes: parseInt(shotData.numberOfStrokes) || 1
       };
       
       // Add error field if there's an actual error (including empty string for "no error")
@@ -395,8 +401,13 @@
     if (playerShots.length === 0) {
       return 1;
     }
-    const maxShotNumber = Math.max(...playerShots.map(shot => shot.shotNumber));
-    return maxShotNumber + 1;
+    
+    // Calculate total strokes by summing numberOfStrokes for all shots
+    const totalStrokes = playerShots.reduce((total, shot) => 
+      total + (shot.numberOfStrokes || 1), 0
+    );
+    
+    return totalStrokes + 1;
   }
 
   function getDefaultLocation(playerId) {
@@ -500,7 +511,12 @@
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div>
-            <h1 class="text-xl font-bold text-ios-gray-900">Hole {holeNumber}</h1>
+            <h1 class="text-xl font-bold text-ios-gray-900">
+              Hole {holeNumber}
+              {#if totalStrokes > 0}
+                <span class="text-lg font-normal text-ios-gray-600 ml-2">({totalStrokes} strokes)</span>
+              {/if}
+            </h1>
             <p class="text-ios-gray-600 text-sm">{round.course}</p>
           </div>
           {#if $selectedPlayer}

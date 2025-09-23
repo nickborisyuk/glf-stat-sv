@@ -89,7 +89,7 @@
   }
 
   .hole-button {
-    @apply w-12 h-12 rounded-full border-2 border-ios-gray-300 flex items-center justify-center font-semibold text-ios-gray-700 bg-white shadow-sm transition-all duration-200;
+    @apply w-16 h-16 rounded-xl border-2 border-ios-gray-300 flex flex-col items-center justify-center font-semibold text-ios-gray-700 bg-white shadow-sm transition-all duration-200 min-h-[64px];
   }
 
   .hole-button.active {

@@ -2,7 +2,7 @@
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { gpsDistance, gpsError } from '../stores/app.js';
   import { fade, fly } from 'svelte/transition';
-  import * as gpsManager from '../lib/gps.js';
+  import { gpsManager } from '../lib/gps.js';
 
   export let pendingShot;
   export let AVAILABLE_TARGET_LOCATIONS;
@@ -21,6 +21,7 @@
   let showTargetModal = false;
   let showErrorTypeModal = false;
   let isDistanceManuallySet = false;
+  let numberOfStrokes = 1; // Количество ударов, по умолчанию 1
 
   // No default target location - user must select
 
@@ -102,7 +103,8 @@
       result,
       error: errorType ? (ERROR_TYPE_LABELS[errorType] || errorType) : null, // Save error for both successful and failed shots
       distance: parseInt(distance) || 0,
-      isPenalty: pendingShot.isPenalty
+      isPenalty: pendingShot.isPenalty,
+      numberOfStrokes: parseInt(numberOfStrokes) || 1
     };
 
     console.log('CompleteShotModal: dispatching complete with data:', shotData);
@@ -204,6 +206,27 @@
           GPS measured: {formatDistance(Math.round($gpsDistance))}
         </p>
       </div>
+
+      <!-- Number of Strokes (shown for shots from bunker) -->
+      {#if pendingShot.location === 'bunker'}
+        <div>
+          <label for="numberOfStrokes" class="block text-sm font-medium text-ios-gray-700 mb-2">
+            Количество ударов
+          </label>
+          <input
+            id="numberOfStrokes"
+            type="number"
+            bind:value={numberOfStrokes}
+            min="1"
+            max="10"
+            class="input-field"
+            placeholder="Enter number of strokes"
+          />
+          <p class="text-xs text-ios-gray-500 mt-1">
+            Количество ударов, сделанных из бункера
+          </p>
+        </div>
+      {/if}
 
       <!-- Target Location (not shown for penalty shots) -->
       {#if !pendingShot.isPenalty}

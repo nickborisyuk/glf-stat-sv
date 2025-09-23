@@ -2,18 +2,19 @@
   import { onMount } from 'svelte';
   import { link, params } from 'svelte-spa-router';
   import { currentRound, error, isLoading, selectedPlayer, players } from '../stores/app.js';
-  import { roundsApi, playersApi } from '../lib/api.js';
+  import { roundsApi, playersApi, shotsApi } from '../lib/api.js';
 
   let round = null;
   let holes = [];
+  let holeStrokes = {}; // Object to store strokes count for each hole
 
   // Get roundId from URL parameters
   $: roundId = $params?.id;
 
   onMount(async () => {
     console.log('HolesPage mounted with roundId:', roundId);
-    await loadRound();
     await loadSelectedPlayerFromSession();
+    await loadRound();
   });
 
   async function loadSelectedPlayerFromSession() {
@@ -36,6 +37,11 @@
     loadRound();
   }
 
+  // Reload hole strokes when selected player changes
+  $: if ($selectedPlayer && roundId) {
+    loadHoleStrokes();
+  }
+
   async function loadRound() {
     try {
       if (!roundId) {
@@ -54,11 +60,54 @@
         number: i + 1,
         hasShots: round.shots ? round.shots.some(shot => shot.holeNumber === i + 1) : false
       }));
+      
+      // Load strokes count for each hole
+      await loadHoleStrokes();
     } catch (err) {
       console.error('Failed to load round:', err);
       error.set(`Failed to load round: ${err.message || 'Unknown error'}`);
     } finally {
       isLoading.set(false);
+    }
+  }
+
+  async function loadHoleStrokes() {
+    if (!$selectedPlayer) {
+      console.log('No selected player, skipping hole strokes load');
+      return;
+    }
+    
+    try {
+      console.log('Loading hole strokes for round:', roundId, 'player:', $selectedPlayer.id);
+      // Load all shots for this round
+      const allShots = await shotsApi.getByRound(roundId);
+      console.log('Loaded shots:', allShots.length);
+      
+      // Calculate strokes for each hole
+      holeStrokes = {};
+      for (let holeNum = 1; holeNum <= holes.length; holeNum++) {
+        const holeShots = allShots.filter(shot => 
+          shot.playerId === $selectedPlayer.id && 
+          shot.holeNumber === holeNum
+        );
+        
+        const totalStrokes = holeShots.reduce((total, shot) => 
+          total + (shot.numberOfStrokes || 1), 0
+        );
+        
+        holeStrokes[holeNum] = totalStrokes;
+        
+        // Update holes array to show if hole has shots
+        const holeIndex = holeNum - 1;
+        if (holes[holeIndex]) {
+          holes[holeIndex].hasShots = holeShots.length > 0;
+        }
+      }
+      
+      // Trigger reactivity
+      holes = [...holes];
+    } catch (err) {
+      console.error('Failed to load hole strokes:', err);
     }
   }
 
@@ -113,14 +162,19 @@
     <div class="p-6">
       <h2 class="text-lg font-semibold text-ios-gray-900 mb-4">Select a Hole</h2>
       
-      <div class="grid grid-cols-3 gap-4">
+      <div class="grid grid-cols-4 gap-3">
         {#each holes as hole}
           <a
             href="/rounds/{roundId}/holes/{hole.number}"
             use:link
             class={getHoleButtonClass(hole)}
           >
-            {hole.number}
+            <div class="text-center leading-tight">
+              <div class="font-bold text-sm">{hole.number}</div>
+              {#if holeStrokes[hole.number] > 0}
+                <div class="text-xs opacity-80 mt-0.5">{holeStrokes[hole.number]}</div>
+              {/if}
+            </div>
           </a>
         {/each}
       </div>
@@ -128,15 +182,29 @@
       <!-- Legend -->
       <div class="mt-8 flex items-center justify-center gap-6">
         <div class="flex items-center gap-2">
-          <div class="hole-button"></div>
+          <div class="hole-button w-12 h-12">
+            <div class="text-center leading-tight">
+              <div class="font-bold text-sm">1</div>
+            </div>
+          </div>
           <span class="text-sm text-ios-gray-600">Not started</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="hole-button has-shots"></div>
+          <div class="hole-button has-shots w-12 h-12">
+            <div class="text-center leading-tight">
+              <div class="font-bold text-sm">2</div>
+              <div class="text-xs opacity-80 mt-0.5">3</div>
+            </div>
+          </div>
           <span class="text-sm text-ios-gray-600">In progress</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="hole-button active"></div>
+          <div class="hole-button active w-12 h-12">
+            <div class="text-center leading-tight">
+              <div class="font-bold text-sm">3</div>
+              <div class="text-xs opacity-80 mt-0.5">5</div>
+            </div>
+          </div>
           <span class="text-sm text-ios-gray-600">Current</span>
         </div>
       </div>

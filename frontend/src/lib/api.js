@@ -109,6 +109,7 @@ export const shotsApi = {
     method: 'POST',
     body: data,
   }),
+  getByRound: (roundId) => request(`/shots/round/${roundId}`),
   getClubs: () => request('/shots/clubs'),
   getLocations: () => request('/shots/locations'),
 };
