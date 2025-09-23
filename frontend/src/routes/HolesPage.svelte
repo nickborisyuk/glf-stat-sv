@@ -1,8 +1,8 @@
 <script>
   import { onMount } from 'svelte';
   import { link, params } from 'svelte-spa-router';
-  import { currentRound, error, isLoading } from '../stores/app.js';
-  import { roundsApi } from '../lib/api.js';
+  import { currentRound, error, isLoading, selectedPlayer, players } from '../stores/app.js';
+  import { roundsApi, playersApi } from '../lib/api.js';
 
   let round = null;
   let holes = [];
@@ -13,7 +13,23 @@
   onMount(async () => {
     console.log('HolesPage mounted with roundId:', roundId);
     await loadRound();
+    await loadSelectedPlayerFromSession();
   });
+
+  async function loadSelectedPlayerFromSession() {
+    const playerId = sessionStorage.getItem('selectedPlayerId');
+    if (playerId) {
+      // Load players first if not already loaded
+      if ($players.length === 0) {
+        const playersData = await playersApi.getAll();
+        players.set(playersData);
+      }
+      const player = $players.find(p => p.id === playerId);
+      if (player) {
+        selectedPlayer.set(player);
+      }
+    }
+  }
 
   // Reload when roundId changes
   $: if ($params && roundId) {
@@ -64,36 +80,43 @@
     <!-- Header -->
     <div class="bg-white border-b border-ios-gray-200 px-6 py-4">
       <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-xl font-bold text-ios-gray-900">{round.course}</h1>
-          <p class="text-ios-gray-600 text-sm">
-            {new Date(round.date).toLocaleDateString()} • 
-            {round.courseType === 'championship' ? 'Championship' : 'Academic'}
-          </p>
+        <div class="flex items-center gap-3">
+          <div>
+            <h1 class="text-xl font-bold text-ios-gray-900">{round.course}</h1>
+            <p class="text-ios-gray-600 text-sm">
+              {new Date(round.date).toLocaleDateString()} • 
+              {round.courseType === 'championship' ? 'Championship' : 'Academic'}
+            </p>
+          </div>
+          {#if $selectedPlayer}
+            <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-ios-blue/10 border border-ios-blue/20">
+              <div 
+                class="w-4 h-4 rounded-full border border-white shadow-sm"
+                style="background-color: {$selectedPlayer.color}"
+              ></div>
+              <span class="text-sm font-medium text-ios-blue">{$selectedPlayer.name}</span>
+            </div>
+          {/if}
         </div>
-        <a href="/rounds" use:link class="btn-secondary text-sm px-4 py-2">
+        <div class="flex items-center gap-2">
+                  <button
+                    on:click={() => {
+                      sessionStorage.removeItem('selectedPlayerId');
+                      window.location.href = '#/';
+                    }}
+                    class="btn-secondary text-sm px-3 py-2"
+                    title="Change Player"
+                  >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+          </button>
+          <a href="/rounds" use:link class="btn-secondary text-sm px-4 py-2">
           Back to Rounds
         </a>
       </div>
     </div>
 
-    <!-- Players Info -->
-    {#if round.players && round.players.length > 0}
-      <div class="bg-white border-b border-ios-gray-200 px-6 py-4">
-        <h2 class="text-sm font-medium text-ios-gray-700 mb-3">Players</h2>
-        <div class="flex flex-wrap gap-3">
-          {#each round.players as player}
-            <div class="flex items-center gap-2 px-3 py-2 bg-ios-gray-100 rounded-xl">
-              <div 
-                class="w-4 h-4 rounded-full border border-white shadow-sm"
-                style="background-color: {player.color}"
-              ></div>
-              <span class="text-sm font-medium text-ios-gray-900">{player.name}</span>
-            </div>
-          {/each}
-        </div>
-      </div>
-    {/if}
 
     <!-- Holes Grid -->
     <div class="p-6">
@@ -128,6 +151,7 @@
       </div>
     </div>
   </div>
+</div>
 {:else}
   <div class="min-h-screen bg-ios-gray-50 flex items-center justify-center">
     <div class="text-center">

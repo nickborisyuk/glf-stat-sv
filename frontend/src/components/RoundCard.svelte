@@ -48,23 +48,6 @@
         {formatDate(round.createdAt)}
       </p>
 
-      <!-- Players -->
-      {#if round.players && round.players.length > 0}
-        <div class="flex items-center gap-2">
-          <span class="text-ios-gray-500 text-sm">Players:</span>
-          <div class="flex items-center gap-2">
-            {#each round.players as player}
-              <div class="flex items-center gap-1">
-                <div 
-                  class="w-3 h-3 rounded-full border border-white shadow-sm"
-                  style="background-color: {player.color}"
-                ></div>
-                <span class="text-sm text-ios-gray-700">{player.name}</span>
-              </div>
-            {/each}
-          </div>
-        </div>
-      {/if}
     </div>
 
     <!-- Actions -->

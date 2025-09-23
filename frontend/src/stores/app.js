@@ -5,6 +5,45 @@ export const currentRound = writable(null);
 export const currentHole = writable(1);
 export const players = writable([]);
 export const rounds = writable([]);
+// Create selectedPlayer store with localStorage persistence
+const createSelectedPlayerStore = () => {
+  const { subscribe, set, update } = writable(null);
+  
+  // Check if we're in browser environment
+  const isBrowser = typeof window !== 'undefined';
+  
+  return {
+    subscribe,
+    set: (player) => {
+      if (isBrowser) {
+        if (player) {
+          localStorage.setItem('selectedPlayer', JSON.stringify(player));
+        } else {
+          localStorage.removeItem('selectedPlayer');
+        }
+      }
+      set(player);
+    },
+    update,
+          // Load from localStorage on initialization
+          load: () => {
+            if (isBrowser) {
+              const stored = localStorage.getItem('selectedPlayer');
+              if (stored) {
+                try {
+                  const player = JSON.parse(stored);
+                  set(player);
+                } catch (e) {
+                  console.error('Failed to parse stored player:', e);
+                  localStorage.removeItem('selectedPlayer');
+                }
+              }
+            }
+          }
+  };
+};
+
+export const selectedPlayer = createSelectedPlayerStore();
 export const isLoading = writable(false);
 export const error = writable(null);
 

@@ -1,13 +1,14 @@
 <script>
   import { onMount } from 'svelte';
   import Router from 'svelte-spa-router';
-  import { activeTab, isLoading, error } from './stores/app.js';
+  import { activeTab, isLoading, error, selectedPlayer } from './stores/app.js';
   import { playersApi, roundsApi } from './lib/api.js';
 import TabBar from './components/TabBar.svelte';
 import ErrorToast from './components/ErrorToast.svelte';
 import LoadingSpinner from './components/LoadingSpinner.svelte';
 
   // Import route components
+  import PlayerSelectionPage from './routes/PlayerSelectionPage.svelte';
   import PlayersPage from './routes/PlayersPage.svelte';
   import RoundsPage from './routes/RoundsPage.svelte';
   import HolesPage from './routes/HolesPage.svelte';
@@ -16,7 +17,7 @@ import LoadingSpinner from './components/LoadingSpinner.svelte';
 
   // Define routes
   const routes = {
-    '/': RoundsPage,
+    '/': PlayerSelectionPage,
     '/players': PlayersPage,
     '/rounds': RoundsPage,
     '/rounds/:id/holes': HolesPage,
@@ -24,12 +25,28 @@ import LoadingSpinner from './components/LoadingSpinner.svelte';
     '/stats': StatsPage,
   };
 
+
   let mounted = false;
+
+  let playerLoaded = false;
+  let initialLoadComplete = false;
 
   onMount(async () => {
     mounted = true;
+    
+    // Load selected player from localStorage
+    selectedPlayer.load();
+    playerLoaded = true;
+    
     await loadInitialData();
+    initialLoadComplete = true;
   });
+
+  // Reactive statement to check player selection when selectedPlayer changes
+  $: {
+    // Disabled automatic redirect to prevent issues with player selection
+    // Users can manually navigate using the "Change Player" button
+  }
 
   async function loadInitialData() {
     isLoading.set(true);
@@ -59,23 +76,25 @@ import LoadingSpinner from './components/LoadingSpinner.svelte';
   <meta name="description" content="Track your golf game statistics" />
 </svelte:head>
 
-{#if mounted}
-  <div class="min-h-screen bg-ios-gray-50">
-    <!-- Main Content -->
-    <main class="pb-20">
-      <Router {routes} />
-    </main>
-    
-    <!-- Tab Bar -->
-    <TabBar />
-    
-    <!-- Error Toast -->
-    <ErrorToast />
-    
-    <!-- Loading Spinner -->
-    <LoadingSpinner />
-  </div>
-{:else}
+        {#if mounted}
+          <div class="min-h-screen bg-ios-gray-50">
+            <!-- Main Content -->
+            <main class="pb-20">
+              <Router {routes} />
+            </main>
+
+            <!-- Tab Bar - only show if player is selected -->
+            {#if $selectedPlayer}
+              <TabBar />
+            {/if}
+
+            <!-- Error Toast -->
+            <ErrorToast />
+
+            <!-- Loading Spinner -->
+            <LoadingSpinner />
+          </div>
+        {:else}
   <!-- Initial Loading Screen -->
   <div class="min-h-screen bg-ios-gray-50 flex items-center justify-center">
     <div class="text-center">

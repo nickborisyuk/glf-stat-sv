@@ -1,8 +1,8 @@
 <script>
   import { onMount } from 'svelte';
   import { link, params } from 'svelte-spa-router';
-  import { currentRound, currentHole, error, isLoading } from '../stores/app.js';
-  import { roundsApi, shotsApi } from '../lib/api.js';
+  import { currentRound, currentHole, error, isLoading, selectedPlayer, players } from '../stores/app.js';
+  import { roundsApi, shotsApi, playersApi } from '../lib/api.js';
   import { gpsManager } from '../lib/gps.js';
   import { AVAILABLE_CLUBS, AVAILABLE_LOCATIONS, AVAILABLE_TARGET_LOCATIONS, LOCATION_LABELS, CLUB_LABELS, AVAILABLE_ERROR_TYPES, ERROR_TYPE_LABELS } from '../stores/app.js';
   import { fade, fly } from 'svelte/transition';
@@ -31,9 +31,25 @@
   // Reactive hole number
   $: holeNumber = holeId ? parseInt(holeId) : null;
 
+  async function loadSelectedPlayerFromSession() {
+    const playerId = sessionStorage.getItem('selectedPlayerId');
+    if (playerId) {
+      // Load players first if not already loaded
+      if ($players.length === 0) {
+        const playersData = await playersApi.getAll();
+        players.set(playersData);
+      }
+      const player = $players.find(p => p.id === playerId);
+      if (player) {
+        selectedPlayer.set(player);
+      }
+    }
+  }
+
   onMount(async () => {
     console.log('HolePage mounted with roundId:', roundId, 'holeId:', holeId);
     await loadData();
+    await loadSelectedPlayerFromSession();
     if (holeNumber) {
       currentHole.set(holeNumber);
     }
@@ -85,11 +101,8 @@
       
       round = roundData;
       
-      // Merge API data with local shots to preserve any locally added shots
-      const apiShotIds = new Set(shotsData.map(s => s.id));
-      const localShotsNotInAPI = shots.filter(s => !apiShotIds.has(s.id));
-      
-      shots = [...shotsData, ...localShotsNotInAPI];
+      // Use shots data directly from API
+      shots = shotsData;
       currentRound.set(round);
       
       // Find incomplete shots and add them to pending shots
@@ -130,6 +143,18 @@
       isLoading.set(true);
       
       const { player, club, location } = event.detail;
+
+      // Check if player is part of this round, if not add them
+      if (round && player && !round.players?.some(p => p.id === player.id)) {
+        console.log('Player not in round, adding player to round...');
+        const updatedRound = {
+          ...round,
+          players: [...(round.players || []), player]
+        };
+        await roundsApi.update(round.id, updatedRound);
+        round = updatedRound;
+        console.log('Player added to round successfully');
+      }
       
       if (!roundId || !holeId) {
         console.error('Missing parameters:', { roundId, holeId });
@@ -217,9 +242,60 @@
     }
   }
 
+  async function addPenaltyShot() {
+    try {
+      isLoading.set(true);
+      
+      if (!$selectedPlayer) {
+        error.set('No player selected');
+        return;
+      }
+
+      if (!round || !holeNumber) {
+        error.set('Round or hole information missing');
+        return;
+      }
+
+      // Check if player is part of this round, if not add them
+      if (!round.players?.some(p => p.id === $selectedPlayer.id)) {
+        console.log('Player not in round, adding player to round...');
+        const updatedRound = {
+          ...round,
+          players: [...(round.players || []), $selectedPlayer]
+        };
+        await roundsApi.update(round.id, updatedRound);
+        round = updatedRound;
+        console.log('Player added to round successfully');
+      }
+
+      // Use the dedicated penalty shot API
+      const penaltyShotData = {
+        roundId: round.id,
+        playerId: $selectedPlayer.id,
+        holeNumber: holeNumber
+      };
+
+      console.log('Creating penalty shot with data:', penaltyShotData);
+      
+      const newShot = await shotsApi.createPenalty(penaltyShotData);
+      console.log('Penalty shot created successfully:', newShot);
+      
+      // Reload data to get updated shots
+      await loadData();
+      
+    } catch (err) {
+      console.error('Failed to create penalty shot:', err);
+      error.set(`Failed to create penalty shot: ${err.response?.data?.errors?.[0]?.msg || err.message}`);
+    } finally {
+      isLoading.set(false);
+    }
+  }
+
   async function completeShot(shotId, shotData) {
     try {
       isLoading.set(true);
+      
+      console.log('HolePage: completeShot called with shotId:', shotId, 'shotData:', shotData);
       
       // Validate required fields
       if (!shotData.targetLocation) {
@@ -233,18 +309,29 @@
         isPenalty: Boolean(shotData.isPenalty)
       };
       
-      // Only add error field if there's an actual error
-      if (shotData.error) {
+      // Add error field if there's an actual error (including empty string for "no error")
+      if (shotData.error !== null && shotData.error !== undefined) {
         updateData.error = shotData.error;
       }
       
       // Update existing shot with final data
       const updatedShot = await shotsApi.update(shotId, updateData);
       
+      console.log('HolePage: updatedShot from server:', updatedShot);
+      console.log('HolePage: updateData sent to server:', updateData);
+      
       // Update local shots array
-      shots = shots.map(shot => 
-        shot.id === shotId ? updatedShot : shot
-      );
+      shots = shots.map(shot => {
+        if (shot.id === shotId) {
+          // If server didn't save the error but we sent it, preserve it locally
+          if (shotData.error && !updatedShot.error) {
+            console.log('HolePage: Server returned error as null, preserving local error:', shotData.error);
+            return { ...updatedShot, error: shotData.error };
+          }
+          return updatedShot;
+        }
+        return shot;
+      });
       
       // Remove from pending shots (if it was there)
       pendingShots = pendingShots.filter(shot => shot.id !== shotId);
@@ -321,18 +408,22 @@
       return 'tee'; // First shot always starts from tee
     }
     
-    // Find the most recent completed shot for this player
-    const completedShots = playerShots.filter(shot => shot.targetLocation && shot.result);
-    console.log('Completed shots for player:', completedShots.length);
+    // Find the most recent completed non-penalty shot for this player
+    const completedNonPenaltyShots = playerShots.filter(shot => 
+      shot.targetLocation && 
+      shot.result && 
+      !shot.isPenalty
+    );
+    console.log('Completed non-penalty shots for player:', completedNonPenaltyShots.length);
     
-    if (completedShots.length === 0) {
-      console.log('No completed shots, defaulting to tee');
-      return 'tee'; // No completed shots, start from tee
+    if (completedNonPenaltyShots.length === 0) {
+      console.log('No completed non-penalty shots, defaulting to tee');
+      return 'tee'; // No completed non-penalty shots, start from tee
     }
     
     // Sort by shot number and get the latest
-    const latestShot = completedShots.sort((a, b) => b.shotNumber - a.shotNumber)[0];
-    console.log('Latest shot target location:', latestShot.targetLocation);
+    const latestShot = completedNonPenaltyShots.sort((a, b) => b.shotNumber - a.shotNumber)[0];
+    console.log('Latest non-penalty shot target location:', latestShot.targetLocation);
     return latestShot.targetLocation;
   }
 
@@ -372,32 +463,30 @@
   async function deleteShot(shotId) {
     try {
       isLoading.set(true);
+      console.log('Attempting to delete shot with ID:', shotId);
       await shotsApi.delete(shotId);
+      console.log('Shot deleted successfully, reloading data...');
       await loadData();
+      console.log('Data reloaded after successful deletion');
     } catch (err) {
       console.error('Failed to delete shot:', err);
-      error.set(`Failed to delete shot: ${err.message}`);
+      console.error('Shot ID:', shotId);
+      console.error('Error details:', err.data);
+      
+      if (err.status === 404) {
+        // Shot not found - likely already deleted, just reload data silently
+        console.log('Shot not found, reloading data...');
+        await loadData();
+        console.log('Data reloaded after 404 error');
+        // Don't show error to user as this is likely a sync issue
+      } else {
+        error.set(`Failed to delete shot: ${err.message}`);
+      }
     } finally {
       isLoading.set(false);
     }
   }
 
-  async function addPenaltyShot(player) {
-    try {
-      isLoading.set(true);
-      await shotsApi.createPenalty({
-        roundId,
-        playerId: player.id,
-        holeNumber
-      });
-      await loadData();
-    } catch (err) {
-      console.error('Failed to add penalty shot:', err);
-      error.set('Failed to add penalty shot');
-    } finally {
-      isLoading.set(false);
-    }
-  }
 </script>
 
 <svelte:head>
@@ -409,13 +498,38 @@
     <!-- Header -->
     <div class="bg-white border-b border-ios-gray-200 px-6 py-4">
       <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-xl font-bold text-ios-gray-900">Hole {holeNumber}</h1>
-          <p class="text-ios-gray-600 text-sm">{round.course}</p>
+        <div class="flex items-center gap-3">
+          <div>
+            <h1 class="text-xl font-bold text-ios-gray-900">Hole {holeNumber}</h1>
+            <p class="text-ios-gray-600 text-sm">{round.course}</p>
+          </div>
+          {#if $selectedPlayer}
+            <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-ios-blue/10 border border-ios-blue/20">
+              <div 
+                class="w-4 h-4 rounded-full border border-white shadow-sm"
+                style="background-color: {$selectedPlayer.color}"
+              ></div>
+              <span class="text-sm font-medium text-ios-blue">{$selectedPlayer.name}</span>
+            </div>
+          {/if}
         </div>
-        <a href="/rounds/{roundId}/holes" use:link class="btn-secondary text-sm px-4 py-2">
-          Back to Holes
-        </a>
+        <div class="flex items-center gap-2">
+                  <button
+                    on:click={() => {
+                      sessionStorage.removeItem('selectedPlayerId');
+                      window.location.href = '#/';
+                    }}
+                    class="btn-secondary text-sm px-3 py-2"
+                    title="Change Player"
+                  >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+          </button>
+          <a href="/rounds/{roundId}/holes" use:link class="btn-secondary text-sm px-4 py-2">
+            Back to Holes
+          </a>
+        </div>
       </div>
     </div>
 
@@ -440,7 +554,9 @@
                 {shot}
                 canDelete={canDeleteShot(shot)}
                 isPending={isPendingShot(shot)}
+                currentDistance={isPendingShot(shot) ? Math.round(gpsManager.getShotDistance(shot.id) || 0) : 0}
                 on:delete={() => deleteShot(shot.id)}
+                on:complete={() => openCompleteModal(shot)}
               />
             </div>
           {/each}
@@ -448,45 +564,35 @@
       {/if}
     </div>
 
-    <!-- Add Shot Button -->
+    <!-- Add Shot Buttons -->
     <div class="fixed bottom-20 left-6 right-6 z-50">
-      <button
-        on:click={() => showShotForm = true}
-        class="w-full btn-primary py-4 flex items-center justify-center gap-2"
-      >
-        <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-        </svg>
-        <span class="whitespace-nowrap">Add Shot</span>
-      </button>
+      <div class="flex gap-3">
+        <button
+          on:click={() => showShotForm = true}
+          class="flex-1 btn-primary py-4 flex items-center justify-center gap-2"
+        >
+          <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          <span class="whitespace-nowrap">Add Shot</span>
+        </button>
+        
+        <button
+          on:click={addPenaltyShot}
+          class="flex-1 btn-secondary py-4 flex items-center justify-center gap-2"
+        >
+          <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span class="whitespace-nowrap">Penalty Shot</span>
+        </button>
+      </div>
     </div>
 
-    <!-- Floating Complete Buttons for Pending Shots -->
-    {#if pendingShots.length > 0}
-      <div class="fixed top-20 right-6 space-y-3 z-50">
-        {#each pendingShots as pendingShot}
-          <button
-            on:click={() => openCompleteModal(pendingShot)}
-            class="flex items-center gap-3 px-4 py-3 rounded-full shadow-lg text-white font-medium transition-transform hover:scale-105"
-            style="background-color: {pendingShot.player.color}"
-          >
-            <div class="flex flex-col items-center">
-              <span class="text-sm font-medium">{pendingShot.player.name}</span>
-              <span class="text-xs opacity-90">{pendingShot.club}</span>
-            </div>
-            <div class="flex flex-col items-center">
-              <span class="text-lg font-bold">{Math.round(pendingShot.distance || gpsManager.getShotDistance(pendingShot.id) || 0)}m</span>
-              <span class="text-xs opacity-90">Complete</span>
-            </div>
-          </button>
-        {/each}
-      </div>
-    {/if}
 
     <!-- Shot Form Modal -->
-    {#if showShotForm && round?.players}
+    {#if showShotForm}
       <ShotForm 
-        players={round.players}
         {AVAILABLE_CLUBS}
         {AVAILABLE_LOCATIONS}
         {getDefaultLocation}
@@ -511,6 +617,7 @@
         {LOCATION_LABELS}
         {AVAILABLE_ERROR_TYPES}
         {ERROR_TYPE_LABELS}
+        allShots={shots}
         distance={currentPendingShot.distance || gpsManager.getShotDistance(currentPendingShot.id) || 0}
         on:complete={(event) => completeShot(currentPendingShot.id, event.detail)}
         on:cancel={() => cancelShot(currentPendingShot.id)}

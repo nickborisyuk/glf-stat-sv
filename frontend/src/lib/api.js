@@ -82,6 +82,10 @@ export const roundsApi = {
     body: round,
   }),
   getById: (id) => request(`/rounds/${id}`),
+  update: (id, round) => request(`/rounds/${id}`, {
+    method: 'PUT',
+    body: round,
+  }),
   delete: (id) => request(`/rounds/${id}`, {
     method: 'DELETE',
   }),

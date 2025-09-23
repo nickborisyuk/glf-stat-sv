@@ -1,7 +1,7 @@
 <script>
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { gpsDistance, gpsError } from '../stores/app.js';
-  import { fade } from 'svelte/transition';
+  import { fade, fly } from 'svelte/transition';
 
   export let pendingShot;
   export let AVAILABLE_TARGET_LOCATIONS;
@@ -9,6 +9,7 @@
   export let AVAILABLE_ERROR_TYPES;
   export let ERROR_TYPE_LABELS;
   export let distance = 0;
+  export let allShots = []; // All shots for this hole to determine last non-penalty location
 
   const dispatch = createEventDispatcher();
 
@@ -16,9 +17,9 @@
   let result = 'success';
   let error = '';
   let errorType = '';
-  let isPenalty = false;
-  let showTargetOptions = false;
-  let showErrorTypeOptions = false;
+  let showTargetModal = false;
+  let showErrorTypeModal = false;
+  let isDistanceManuallySet = false;
 
   // No default target location - user must select
 
@@ -29,21 +30,50 @@
     }
   });
 
+  // Reactive statement to update distance from GPS if not manually set
+  $: {
+    if (!isDistanceManuallySet && $gpsDistance > 0) {
+      distance = Math.round($gpsDistance);
+    }
+  }
+
+  function getDisplayLocation() {
+    // For both penalty and regular shots, find the last completed non-penalty shot's target location
+    // This ensures we never show "penalty" as the starting location
+    const completedNonPenaltyShots = allShots.filter(shot => 
+      shot.id !== pendingShot.id && 
+      !shot.isPenalty && 
+      shot.targetLocation && 
+      shot.result
+    );
+    
+    if (completedNonPenaltyShots.length > 0) {
+      // Sort by shot number and get the latest
+      const latestShot = completedNonPenaltyShots.sort((a, b) => b.shotNumber - a.shotNumber)[0];
+      return latestShot.targetLocation;
+    }
+    
+    // Fallback to tee if no completed non-penalty shots
+    return 'tee';
+  }
+
   function completeShot() {
-    if (!targetLocation) {
-      console.error('CompleteShotModal: targetLocation is required');
+    if (!pendingShot.isPenalty && !targetLocation) {
+      console.error('CompleteShotModal: targetLocation is required for non-penalty shots');
       return;
     }
 
     const shotData = {
-      targetLocation,
+      targetLocation: pendingShot.isPenalty ? 'penalty' : targetLocation,
       result,
-      error: result === 'fail' ? error : null,
+      error: errorType ? (ERROR_TYPE_LABELS[errorType] || errorType) : null, // Save error for both successful and failed shots
       distance: parseInt(distance) || 0,
-      isPenalty: Boolean(isPenalty)
+      isPenalty: pendingShot.isPenalty
     };
 
     console.log('CompleteShotModal: dispatching complete with data:', shotData);
+    console.log('CompleteShotModal: error value:', error);
+    console.log('CompleteShotModal: errorType value:', errorType);
     dispatch('complete', shotData);
   }
 
@@ -53,25 +83,22 @@
 
   function selectTargetLocation(location) {
     targetLocation = location;
-    showTargetOptions = false;
+    showTargetModal = false;
   }
 
   function selectErrorType(errorTypeValue) {
     errorType = errorTypeValue;
     error = ERROR_TYPE_LABELS[errorTypeValue] || errorTypeValue;
-    showErrorTypeOptions = false;
+    showErrorTypeModal = false;
   }
 
   function toggleResult() {
     result = result === 'success' ? 'fail' : 'success';
-    if (result === 'success') {
-      error = '';
-      errorType = '';
-    }
+    // Don't clear error when switching result - error can be set for any shot
   }
 
   // Reactive computed value for button state
-  $: canComplete = targetLocation && (result === 'success' || (result === 'fail' && errorType.trim()));
+  $: canComplete = pendingShot.isPenalty || targetLocation;
 
   function canCompleteShot() {
     return canComplete;
@@ -92,7 +119,7 @@
       <div>
         <h2 class="text-xl font-bold text-ios-gray-900">Complete Shot</h2>
         <p class="text-ios-gray-600 text-sm mt-1">
-          {pendingShot.player.name} • {pendingShot.club} • {pendingShot.location}
+          {pendingShot.player.name} • {pendingShot.club} • {LOCATION_LABELS[getDisplayLocation()] || getDisplayLocation()}
         </p>
       </div>
       <button
@@ -133,47 +160,35 @@
           min="0"
           class="input-field"
           placeholder="Enter distance"
+          on:input={() => isDistanceManuallySet = true}
         />
         <p class="text-xs text-ios-gray-500 mt-1">
           GPS measured: {formatDistance(Math.round($gpsDistance))}
         </p>
       </div>
 
-      <!-- Target Location -->
-      <div>
-        <label class="block text-sm font-medium text-ios-gray-700 mb-2">
-          Where did the ball land?
-        </label>
-        <button
-          on:click={() => showTargetOptions = !showTargetOptions}
-          class="w-full flex items-center justify-between p-4 border border-ios-gray-300 rounded-xl hover:border-ios-blue transition-colors"
-        >
-          <span class="text-ios-gray-700">
-            {targetLocation || 'Select target location'}
-          </span>
-          <svg 
-            class="w-5 h-5 text-ios-gray-400 transition-transform {showTargetOptions ? 'rotate-180' : ''}"
-            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+      <!-- Target Location (not shown for penalty shots) -->
+      {#if !pendingShot.isPenalty}
+        <div>
+          <label class="block text-sm font-medium text-ios-gray-700 mb-2">
+            Where did the ball land?
+          </label>
+          <button
+            on:click={() => showTargetModal = true}
+            class="w-full flex items-center justify-between p-4 border border-ios-gray-300 rounded-xl hover:border-ios-blue transition-colors"
           >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-
-        {#if showTargetOptions}
-          <div class="mt-3 grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
-            {#each AVAILABLE_TARGET_LOCATIONS as location}
-              <button
-                on:click={() => selectTargetLocation(location)}
-                class="p-3 rounded-xl border border-ios-gray-200 hover:border-ios-blue hover:bg-ios-blue/5 transition-colors text-left"
-              >
-                <span class="font-medium text-ios-gray-900 capitalize">
-                  {LOCATION_LABELS[location] || location}
-                </span>
-              </button>
-            {/each}
-          </div>
-        {/if}
-      </div>
+            <span class="text-ios-gray-700">
+              {targetLocation ? LOCATION_LABELS[targetLocation] || targetLocation : 'Select target location'}
+            </span>
+            <svg 
+              class="w-5 h-5 text-ios-gray-400"
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      {/if}
 
       <!-- Result -->
       <div>
@@ -217,57 +232,28 @@
         </div>
       </div>
 
-      <!-- Error Type (if failed) -->
-      {#if result === 'fail'}
-        <div>
-          <label for="error-type" class="block text-sm font-medium text-ios-gray-700 mb-2">
-            What went wrong?
-          </label>
-          <button
-            id="error-type"
-            on:click={() => showErrorTypeOptions = !showErrorTypeOptions}
-            class="w-full flex items-center justify-between p-4 border border-ios-gray-300 rounded-xl hover:border-ios-blue transition-colors"
-          >
-            <span class="text-ios-gray-700">
-              {errorType ? ERROR_TYPE_LABELS[errorType] : 'Select error type'}
-            </span>
-            <svg 
-              class="w-5 h-5 text-ios-gray-400 transition-transform {showErrorTypeOptions ? 'rotate-180' : ''}"
-              fill="none" stroke="currentColor" viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-
-          {#if showErrorTypeOptions}
-            <div class="mt-3 grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
-              {#each AVAILABLE_ERROR_TYPES as errorTypeValue}
-                <button
-                  on:click={() => selectErrorType(errorTypeValue)}
-                  class="p-3 rounded-xl border border-ios-gray-200 hover:border-ios-blue hover:bg-ios-blue/5 transition-colors text-left"
-                >
-                  <span class="font-medium text-ios-gray-900">
-                    {ERROR_TYPE_LABELS[errorTypeValue] || errorTypeValue}
-                  </span>
-                </button>
-              {/each}
-            </div>
-          {/if}
-        </div>
-      {/if}
-
-      <!-- Penalty Shot -->
-      <div class="flex items-center gap-3">
-        <input
-          id="penalty"
-          type="checkbox"
-          bind:checked={isPenalty}
-          class="w-5 h-5 text-ios-blue border-ios-gray-300 rounded focus:ring-ios-blue"
-        />
-        <label for="penalty" class="text-sm font-medium text-ios-gray-700">
-          This is a penalty shot
+      <!-- Error Type (optional for any shot) -->
+      <div>
+        <label for="error-type" class="block text-sm font-medium text-ios-gray-700 mb-2">
+          Shot Error (optional)
         </label>
+        <button
+          id="error-type"
+          on:click={() => showErrorTypeModal = true}
+          class="w-full flex items-center justify-between p-4 border border-ios-gray-300 rounded-xl hover:border-ios-blue transition-colors"
+        >
+          <span class="text-ios-gray-700">
+            {errorType ? ERROR_TYPE_LABELS[errorType] : 'No error'}
+          </span>
+          <svg 
+            class="w-5 h-5 text-ios-gray-400"
+            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
       </div>
+
     </div>
 
     <!-- Actions -->
@@ -287,4 +273,107 @@
       </button>
     </div>
   </div>
+
+  <!-- Target Location Selection Modal -->
+  {#if showTargetModal}
+    <div 
+      class="absolute inset-0 bg-black/50 flex items-center justify-center z-50" 
+      transition:fade
+      on:click={() => showTargetModal = false}
+    >
+      <div 
+        class="w-[95%] h-[95%] bg-white rounded-3xl overflow-hidden" 
+        transition:fly={{ y: 300, duration: 300 }}
+        on:click|stopPropagation
+      >
+        <!-- Header -->
+        <div class="flex items-center justify-between p-6 border-b border-ios-gray-200">
+          <h3 class="text-xl font-bold text-ios-gray-900">Where did the ball land?</h3>
+          <button
+            on:click={() => showTargetModal = false}
+            class="p-2 text-ios-gray-400 hover:text-ios-gray-600 rounded-lg transition-colors"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        <!-- Options -->
+        <div class="p-6 space-y-3 h-full overflow-y-auto">
+          {#each AVAILABLE_TARGET_LOCATIONS as location}
+            <button
+              on:click={() => selectTargetLocation(location)}
+              class="w-full p-4 rounded-xl border-2 transition-colors text-left
+                     {targetLocation === location 
+                       ? 'border-ios-blue bg-ios-blue/10 text-ios-blue' 
+                       : 'border-ios-gray-200 hover:border-ios-blue hover:bg-ios-blue/5 text-ios-gray-900'}"
+            >
+              <span class="font-medium text-lg">
+                {LOCATION_LABELS[location] || location}
+              </span>
+            </button>
+          {/each}
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Error Type Selection Modal -->
+  {#if showErrorTypeModal}
+    <div 
+      class="absolute inset-0 bg-black/50 flex items-center justify-center z-50" 
+      transition:fade
+      on:click={() => showErrorTypeModal = false}
+    >
+      <div 
+        class="w-[95%] h-[95%] bg-white rounded-3xl overflow-hidden" 
+        transition:fly={{ y: 300, duration: 300 }}
+        on:click|stopPropagation
+      >
+        <!-- Header -->
+        <div class="flex items-center justify-between p-6 border-b border-ios-gray-200">
+          <h3 class="text-xl font-bold text-ios-gray-900">Shot Error (optional)</h3>
+          <button
+            on:click={() => showErrorTypeModal = false}
+            class="p-2 text-ios-gray-400 hover:text-ios-gray-600 rounded-lg transition-colors"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        <!-- Options -->
+        <div class="p-6 space-y-3 h-full overflow-y-auto">
+          <button
+            on:click={() => {
+              errorType = '';
+              error = '';
+              showErrorTypeModal = false;
+            }}
+            class="w-full p-4 rounded-xl border-2 transition-colors text-left
+                   {!errorType 
+                     ? 'border-ios-blue bg-ios-blue/10 text-ios-blue' 
+                     : 'border-ios-gray-200 hover:border-ios-blue hover:bg-ios-blue/5 text-ios-gray-900'}"
+          >
+            <span class="font-medium text-lg">No error</span>
+          </button>
+          {#each AVAILABLE_ERROR_TYPES as errorTypeValue}
+            <button
+              on:click={() => selectErrorType(errorTypeValue)}
+              class="w-full p-4 rounded-xl border-2 transition-colors text-left
+                     {errorType === errorTypeValue 
+                       ? 'border-ios-blue bg-ios-blue/10 text-ios-blue' 
+                       : 'border-ios-gray-200 hover:border-ios-blue hover:bg-ios-blue/5 text-ios-gray-900'}"
+            >
+              <span class="font-medium text-lg">
+                {ERROR_TYPE_LABELS[errorTypeValue] || errorTypeValue}
+              </span>
+            </button>
+          {/each}
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>

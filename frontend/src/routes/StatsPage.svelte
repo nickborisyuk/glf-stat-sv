@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { rounds, players, error, isLoading } from '../stores/app.js';
+  import { rounds, players, error, isLoading, selectedPlayer as currentPlayer } from '../stores/app.js';
   import { statsApi, roundsApi, playersApi } from '../lib/api.js';
   import { fade } from 'svelte/transition';
   import StatsCard from '../components/StatsCard.svelte';
@@ -20,7 +20,23 @@
 
   onMount(async () => {
     await loadData();
+    await loadSelectedPlayerFromSession();
   });
+
+  async function loadSelectedPlayerFromSession() {
+    const playerId = sessionStorage.getItem('selectedPlayerId');
+    if (playerId) {
+      // Load players first if not already loaded
+      if ($players.length === 0) {
+        const playersData = await playersApi.getAll();
+        players.set(playersData);
+      }
+      const player = $players.find(p => p.id === playerId);
+      if (player) {
+        currentPlayer.set(player);
+      }
+    }
+  }
 
   async function loadData() {
     try {
@@ -100,7 +116,32 @@
 <div class="min-h-screen bg-ios-gray-50">
   <!-- Header -->
   <div class="bg-white border-b border-ios-gray-200 px-6 py-4">
-    <h1 class="text-2xl font-bold text-ios-gray-900">Statistics</h1>
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <h1 class="text-2xl font-bold text-ios-gray-900">Statistics</h1>
+        {#if $currentPlayer}
+          <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-ios-blue/10 border border-ios-blue/20">
+            <div 
+              class="w-4 h-4 rounded-full border border-white shadow-sm"
+              style="background-color: {$currentPlayer.color}"
+            ></div>
+            <span class="text-sm font-medium text-ios-blue">{$currentPlayer.name}</span>
+          </div>
+        {/if}
+      </div>
+        <button
+          on:click={() => {
+            sessionStorage.removeItem('selectedPlayerId');
+            window.location.href = '#/';
+          }}
+          class="btn-secondary text-sm px-3 py-2"
+          title="Change Player"
+        >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+        </svg>
+      </button>
+    </div>
   </div>
 
   <div class="p-6 space-y-6">

@@ -1,18 +1,43 @@
 <script>
   import { onMount } from 'svelte';
   import { link } from 'svelte-spa-router';
-  import { rounds, players, error, isLoading } from '../stores/app.js';
+  import { rounds, players, error, isLoading, selectedPlayer } from '../stores/app.js';
   import { roundsApi, playersApi } from '../lib/api.js';
   import { formatDate } from '../stores/app.js';
   import { fade, fly } from 'svelte/transition';
   import RoundCard from '../components/RoundCard.svelte';
   import AddRoundModal from '../components/AddRoundModal.svelte';
 
+
   let showAddModal = false;
+  let filteredRounds = [];
+
+  // Reactive statement to filter rounds by selected player
+  $: {
+    if ($selectedPlayer && $rounds.length > 0) {
+      filteredRounds = $rounds.filter(round => 
+        round.players && round.players.some(player => player.id === $selectedPlayer.id)
+      );
+    } else {
+      filteredRounds = [];
+    }
+  }
 
   onMount(async () => {
     await loadData();
+    await loadSelectedPlayer();
   });
+
+  async function loadSelectedPlayer() {
+    const playerId = sessionStorage.getItem('selectedPlayerId');
+    if (playerId) {
+      // Find player by ID from the loaded players
+      const player = $players.find(p => p.id === playerId);
+      if (player) {
+        selectedPlayer.set(player);
+      }
+    }
+  }
 
   async function loadData() {
     try {
@@ -58,23 +83,47 @@
   <!-- Header -->
   <div class="bg-white border-b border-ios-gray-200 px-6 py-4">
     <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold text-ios-gray-900">Rounds</h1>
-      <button
-        on:click={() => showAddModal = true}
-        class="btn-primary text-sm px-4 py-2 flex items-center gap-2 whitespace-nowrap"
-        disabled={$players.length === 0}
-      >
-        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-        </svg>
-        <span class="whitespace-nowrap">New Round</span>
-      </button>
+      <div class="flex items-center gap-3">
+        <h1 class="text-2xl font-bold text-ios-gray-900">Rounds</h1>
+        {#if $selectedPlayer}
+          <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-ios-blue/10 border border-ios-blue/20">
+            <div 
+              class="w-4 h-4 rounded-full border border-white shadow-sm"
+              style="background-color: {$selectedPlayer.color}"
+            ></div>
+            <span class="text-sm font-medium text-ios-blue">{$selectedPlayer.name}</span>
+          </div>
+        {/if}
+      </div>
+      <div class="flex items-center gap-2">
+        <button
+          on:click={() => {
+            sessionStorage.removeItem('selectedPlayerId');
+            window.location.href = '#/';
+          }}
+          class="btn-secondary text-sm px-3 py-2"
+          title="Change Player"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+          </svg>
+        </button>
+        <button
+          on:click={() => showAddModal = true}
+          class="btn-primary text-sm px-4 py-2 flex items-center gap-2 whitespace-nowrap"
+        >
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          <span class="whitespace-nowrap">New Round</span>
+        </button>
+      </div>
     </div>
   </div>
 
   <!-- Rounds List -->
   <div class="p-6">
-    {#if $players.length === 0}
+    {#if filteredRounds.length === 0}
       <div class="text-center py-12" transition:fade>
         <div class="w-24 h-24 mx-auto mb-4 bg-ios-gray-200 rounded-full flex items-center justify-center">
           <svg class="w-12 h-12 text-ios-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -82,22 +131,20 @@
                   d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <h3 class="text-lg font-semibold text-ios-gray-900 mb-2">No Players Available</h3>
-        <p class="text-ios-gray-600 mb-6">You need to add players before creating rounds</p>
-        <a href="/players" use:link class="btn-primary">
-          Add Players First
-        </a>
-      </div>
-    {:else if $rounds.length === 0}
-      <div class="text-center py-12" transition:fade>
-        <div class="w-24 h-24 mx-auto mb-4 bg-ios-gray-200 rounded-full flex items-center justify-center">
-          <svg class="w-12 h-12 text-ios-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-        <h3 class="text-lg font-semibold text-ios-gray-900 mb-2">No Rounds Yet</h3>
-        <p class="text-ios-gray-600 mb-6">Start tracking your golf games by creating a new round</p>
+        <h3 class="text-lg font-semibold text-ios-gray-900 mb-2">
+          {#if $selectedPlayer}
+            No Rounds for {$selectedPlayer.name}
+          {:else}
+            No Rounds Yet
+          {/if}
+        </h3>
+        <p class="text-ios-gray-600 mb-6">
+          {#if $selectedPlayer}
+            {$selectedPlayer.name} hasn't played any rounds yet. Create a new round to start tracking.
+          {:else}
+            Start tracking your golf games by creating a new round
+          {/if}
+        </p>
         <button
           on:click={() => showAddModal = true}
           class="btn-primary"
@@ -107,7 +154,7 @@
       </div>
     {:else}
       <div class="grid gap-4">
-        {#each $rounds as round (round.id)}
+        {#each filteredRounds as round (round.id)}
           <div transition:fly={{ y: 20, duration: 300 }}>
             <RoundCard 
               {round} 
@@ -120,9 +167,8 @@
   </div>
 
   <!-- Add Round Modal -->
-  {#if showAddModal && $players.length > 0}
+  {#if showAddModal}
     <AddRoundModal 
-      players={$players}
       on:close={() => showAddModal = false}
       on:added={handleRoundAdded}
     />

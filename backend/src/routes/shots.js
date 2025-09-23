@@ -120,7 +120,10 @@ router.post('/', [
     }
     if (result) {
       shotData.result = result;
-      shotData.error = result === 'fail' ? error : null;
+    }
+    // Allow error to be saved for both success and fail results
+    if (error) {
+      shotData.error = error;
     }
 
     const shot = await prisma.shot.create({
@@ -165,10 +168,8 @@ router.put('/:id', [
       return res.status(404).json({ error: 'Shot not found' });
     }
 
-    // If result is success, clear error
-    if (updateData.result === 'success') {
-      updateData.error = null;
-    }
+    // Allow error to be saved for both success and fail results
+    // Error is optional and can be specified for any shot
 
     const shot = await prisma.shot.update({
       where: { id },
